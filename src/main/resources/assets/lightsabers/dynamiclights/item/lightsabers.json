@@ -1,0 +1,14 @@
+{
+  "match": {
+    "items": [
+      "lightsabers:lightsaber",
+      "lightsabers:blue_lightsaber",
+      "lightsabers:green_lightsaber",
+      "lightsabers:red_lightsaber",
+      "lightsabers:purple_lightsaber",
+      "lightsabers:yellow_lightsaber"
+    ]
+  },
+  "luminance": 15,
+  "water_sensitive": false
+}

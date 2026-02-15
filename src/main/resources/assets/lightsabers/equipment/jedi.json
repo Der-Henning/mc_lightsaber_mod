@@ -1,0 +1,14 @@
+{
+  "layers": {
+    "humanoid": [
+      {
+        "texture": "lightsabers:jedi"
+      }
+    ],
+    "humanoid_leggings": [
+      {
+        "texture": "lightsabers:jedi"
+      }
+    ]
+  }
+}

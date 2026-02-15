@@ -1,0 +1,91 @@
+{
+  "credit": "Adapted from Volery39/Lightsabers model resources",
+  "texture_size": [32, 32],
+  "textures": {
+    "0": "lightsabers:item/lightsaber_hilt",
+    "1": "lightsabers:item/yellow_lightsaber",
+    "particle": "lightsabers:item/lightsaber_hilt"
+  },
+  "elements": [
+    {
+      "from": [7.25, 0, 7.25],
+      "to": [8.75, 7, 8.75],
+      "faces": {
+        "north": {"uv": [4, 7.5, 5, 11], "texture": "#0"},
+        "east": {"uv": [5, 7.5, 6, 11], "texture": "#0"},
+        "south": {"uv": [6, 7.5, 7, 11], "texture": "#0"},
+        "west": {"uv": [7, 7.5, 8, 11], "texture": "#0"},
+        "up": {"uv": [9, 3, 8, 2], "texture": "#0"},
+        "down": {"uv": [9, 3, 8, 4], "texture": "#0"}
+      }
+    },
+    {
+      "from": [7.25, 7, 7.25],
+      "to": [8.75, 22, 8.75],
+      "faces": {
+        "north": {"uv": [0, 0, 1, 7.5], "texture": "#1"},
+        "east": {"uv": [1, 0, 2, 7.5], "texture": "#1"},
+        "south": {"uv": [2, 0, 3, 7.5], "texture": "#1"},
+        "west": {"uv": [3, 0, 4, 7.5], "texture": "#1"},
+        "up": {"uv": [9, 5, 8, 4], "texture": "#1"},
+        "down": {"uv": [9, 5, 8, 6], "texture": "#1"}
+      }
+    },
+    {
+      "from": [7, 7, 7],
+      "to": [7, 22.25, 9],
+      "faces": {
+        "north": {"uv": [0, 0, 0, 7.5], "texture": "#1"},
+        "east": {"uv": [4, 0, 5, 7.5], "texture": "#1"},
+        "south": {"uv": [0, 0, 0, 7.5], "texture": "#1"},
+        "west": {"uv": [5, 0, 6, 7.5], "texture": "#1"}
+      }
+    },
+    {
+      "from": [9, 7, 7],
+      "to": [9, 22.25, 9],
+      "faces": {
+        "north": {"uv": [0, 0, 0, 7.5], "texture": "#1"},
+        "east": {"uv": [6, 0, 7, 7.5], "texture": "#1"},
+        "south": {"uv": [0, 0, 0, 7.5], "texture": "#1"},
+        "west": {"uv": [7, 0, 8, 7.5], "texture": "#1"}
+      }
+    },
+    {
+      "from": [7, 7, 7],
+      "to": [9, 22.25, 7],
+      "faces": {
+        "north": {"uv": [0, 7.5, 1, 15], "texture": "#1"},
+        "south": {"uv": [1, 7.5, 2, 15], "texture": "#1"}
+      }
+    },
+    {
+      "from": [7, 7, 9],
+      "to": [9, 22.25, 9],
+      "faces": {
+        "north": {"uv": [2, 7.5, 3, 15], "texture": "#1"},
+        "south": {"uv": [3, 7.5, 4, 15], "texture": "#1"}
+      }
+    }
+  ],
+  "display": {
+    "thirdperson_righthand": {
+      "translation": [0.0, 6.0, 2.0],
+      "scale": [1.0, 1.55, 1.0]
+    },
+    "thirdperson_lefthand": {
+      "translation": [0.0, 6.0, 2.0],
+      "scale": [1.0, 1.55, 1.0]
+    },
+    "firstperson_righthand": {
+      "rotation": [0, -90, 25],
+      "translation": [1.2, 2.2, 0.8],
+      "scale": [0.9, 0.9, 0.9]
+    },
+    "firstperson_lefthand": {
+      "rotation": [0, 90, -25],
+      "translation": [1.2, 2.2, 0.8],
+      "scale": [0.9, 0.9, 0.9]
+    }
+  }
+}

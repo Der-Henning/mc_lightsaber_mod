@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "WWW",
+    "W W",
+    "W W"
+  ],
+  "key": {
+    "W": "minecraft:brown_wool"
+  },
+  "result": {
+    "id": "lightsabers:jedi_pants",
+    "count": 1
+  }
+}

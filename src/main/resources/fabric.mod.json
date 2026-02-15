@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "lightsabers",
+  "version": "${version}",
+  "name": "Lightsabers",
+  "description": "A lightsaber-themed content mod for Minecraft Java.",
+  "authors": [
+    "Henning"
+  ],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/lightsabers/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.henning.lightsabers.LightsabersMod"
+    ],
+    "client": [
+      "com.henning.lightsabers.client.LightsabersClient"
+    ]
+  },
+  "mixins": [
+    "lightsabers.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.18.2",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}

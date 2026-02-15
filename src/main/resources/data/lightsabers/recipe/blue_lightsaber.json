@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "ECE",
+    "ABA",
+    "INI"
+  ],
+  "key": {
+    "E": "minecraft:echo_shard",
+    "C": "minecraft:blue_dye",
+    "A": "minecraft:amethyst_shard",
+    "B": "minecraft:blaze_rod",
+    "I": "minecraft:iron_ingot",
+    "N": "minecraft:netherite_ingot"
+  },
+  "result": {
+    "id": "lightsabers:blue_lightsaber",
+    "count": 1
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "lightsaber.activate": {
+    "subtitle": "subtitles.lightsabers.lightsaber.activate",
+    "sounds": [
+      { "name": "lightsabers:item_lightsaber_swing", "stream": false }
+    ]
+  },
+  "lightsaber.hit": {
+    "subtitle": "subtitles.lightsabers.lightsaber.hit",
+    "sounds": [
+      { "name": "lightsabers:item_lightsaber_clash", "stream": false }
+    ]
+  },
+  "blaster.shoot": {
+    "subtitle": "subtitles.lightsabers.blaster.shoot",
+    "sounds": [
+      { "name": "lightsabers:item_blaster_shoot", "stream": false }
+    ]
+  }
+}

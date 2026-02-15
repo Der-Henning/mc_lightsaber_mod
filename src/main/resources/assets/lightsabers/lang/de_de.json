@@ -1,0 +1,20 @@
+{
+  "itemGroup.lightsabers.main": "Lichtschwerter",
+  "item.lightsabers.lightsaber": "Cyanes Lichtschwert",
+  "item.lightsabers.blue_lightsaber": "Blaues Lichtschwert",
+  "item.lightsabers.green_lightsaber": "Grünes Lichtschwert",
+  "item.lightsabers.red_lightsaber": "Rotes Lichtschwert",
+  "item.lightsabers.purple_lightsaber": "Lila Lichtschwert",
+  "item.lightsabers.yellow_lightsaber": "Gelbes Lichtschwert",
+  "item.lightsabers.blaster": "Blaster",
+  "item.lightsabers.jedi_hood": "Jedi-Kapuze",
+  "item.lightsabers.jedi_tunic": "Jedi-Tunika",
+  "item.lightsabers.jedi_pants": "Jedi-Hose",
+  "item.lightsabers.jedi_boots": "Jedi-Stiefel",
+  "item.lightsabers.lightsaber.tooltip": "Eine elegante Waffe aus einer zivilisierteren Zeit.",
+  "item.lightsabers.weapon.fire_notice": "Setzt Ziele in Brand",
+  "subtitles.lightsabers.lightsaber.activate": "Lichtschwert wird aktiviert",
+  "subtitles.lightsabers.lightsaber.hit": "Lichtschwert trifft",
+  "subtitles.lightsabers.blaster.shoot": "Blaster feuert",
+  "entity.lightsabers.blaster_projectile": "Blasterbolzen"
+}

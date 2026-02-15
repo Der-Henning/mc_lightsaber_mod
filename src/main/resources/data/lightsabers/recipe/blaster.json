@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "#": "minecraft:fire_charge",
+    "S": "minecraft:glowstone_dust",
+    "X": "minecraft:iron_ingot",
+    "L": "minecraft:netherite_scrap"
+  },
+  "pattern": [
+    " X ",
+    "X#S",
+    "LX "
+  ],
+  "result": {
+    "count": 1,
+    "id": "lightsabers:blaster"
+  }
+}

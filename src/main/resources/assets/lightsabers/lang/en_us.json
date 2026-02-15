@@ -1,0 +1,20 @@
+{
+  "itemGroup.lightsabers.main": "Lightsabers",
+  "item.lightsabers.lightsaber": "Cyan Lightsaber",
+  "item.lightsabers.blue_lightsaber": "Blue Lightsaber",
+  "item.lightsabers.green_lightsaber": "Green Lightsaber",
+  "item.lightsabers.red_lightsaber": "Red Lightsaber",
+  "item.lightsabers.purple_lightsaber": "Purple Lightsaber",
+  "item.lightsabers.yellow_lightsaber": "Yellow Lightsaber",
+  "item.lightsabers.blaster": "Blaster",
+  "item.lightsabers.jedi_hood": "Jedi Hood",
+  "item.lightsabers.jedi_tunic": "Jedi Tunic",
+  "item.lightsabers.jedi_pants": "Jedi Pants",
+  "item.lightsabers.jedi_boots": "Jedi Boots",
+  "item.lightsabers.lightsaber.tooltip": "An elegant weapon from a more civilized age.",
+  "item.lightsabers.weapon.fire_notice": "Sets targets on fire",
+  "subtitles.lightsabers.lightsaber.activate": "Lightsaber ignites",
+  "subtitles.lightsabers.lightsaber.hit": "Lightsaber strikes",
+  "subtitles.lightsabers.blaster.shoot": "Blaster fires",
+  "entity.lightsabers.blaster_projectile": "Blaster Bolt"
+}
