@@ -3,7 +3,7 @@ version = 1
 name = "lightsabers"
 
 [setup]
-script = ""
+script = "./scripts/setup-codex-dev.sh"
 
 [[actions]]
 name = "Run"
