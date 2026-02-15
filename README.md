@@ -2,6 +2,8 @@
 
 Minecraft Java Fabric mod targeting **1.21.11** with lightsabers, blaster, recipes, sounds, and Jedi armor.
 
+> Note: This project was vibe coded using Codex.
+
 ## Prerequisites
 
 - Java 21
