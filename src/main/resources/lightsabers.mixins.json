@@ -5,6 +5,7 @@
   "mixins": [],
   "client": [
     "BufferBuilderStorageMixin",
+    "MinecraftClientAttackMixin",
     "ItemRendererMixin",
     "ItemModelManagerMixin",
     "RenderLayerInvoker"

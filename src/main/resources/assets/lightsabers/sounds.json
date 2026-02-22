@@ -1,20 +1,18 @@
 {
-  "lightsaber.activate": {
-    "subtitle": "subtitles.lightsabers.lightsaber.activate",
-    "sounds": [
-      { "name": "lightsabers:item_lightsaber_swing", "stream": false }
-    ]
+  "lightsaber.swing": {
+    "subtitle": "subtitles.lightsabers.lightsaber.swing",
+    "sounds": [{ "name": "lightsabers:item_lightsaber_swing", "stream": false }]
+  },
+  "lightsaber.hum": {
+    "subtitle": "subtitles.lightsabers.lightsaber.hum",
+    "sounds": [{ "name": "lightsabers:lightsaber_hum", "stream": false }]
   },
   "lightsaber.hit": {
     "subtitle": "subtitles.lightsabers.lightsaber.hit",
-    "sounds": [
-      { "name": "lightsabers:item_lightsaber_clash", "stream": false }
-    ]
+    "sounds": [{ "name": "lightsabers:item_lightsaber_clash", "stream": false }]
   },
   "blaster.shoot": {
     "subtitle": "subtitles.lightsabers.blaster.shoot",
-    "sounds": [
-      { "name": "lightsabers:item_blaster_shoot", "stream": false }
-    ]
+    "sounds": [{ "name": "lightsabers:item_blaster_shoot", "stream": false }]
   }
 }

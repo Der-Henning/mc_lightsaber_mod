@@ -83,3 +83,15 @@ Do not install client-only graphics mods on the server:
 - `iris`
 - shader packs
 - `lambdynamiclights` (keep client-side unless you intentionally use a server-safe setup)
+
+## Included Skin Asset
+
+- Darth Vader skin source file: `external-resources/skins/darth_vader.png`
+- Original page: [PlanetMinecraft - Darth Vader](https://www.planetminecraft.com/skin/darth-vader-5364105/)
+
+### Use The Skin In-Game (Java)
+
+1. Open Minecraft Launcher and start the Java Edition profile you use for this mod.
+2. In the launcher, open `Skins`.
+3. Add a new skin and select `external-resources/skins/darth_vader.png`.
+4. Pick `Classic (4px arms)` unless you intentionally want slim arms.

@@ -17,9 +17,16 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.Hand;
 import net.minecraft.world.World;
 
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 public class BlasterItem extends Item {
+    private static final long BLASTER_COOLDOWN_TICKS = 5L;
+    private static final Map<UUID, Long> MAIN_HAND_COOLDOWN_UNTIL = new ConcurrentHashMap<>();
+    private static final Map<UUID, Long> OFF_HAND_COOLDOWN_UNTIL = new ConcurrentHashMap<>();
+
     public BlasterItem(Settings settings) {
         super(settings);
     }
@@ -27,6 +34,13 @@ public class BlasterItem extends Item {
     @Override
     public ActionResult use(World world, PlayerEntity user, Hand hand) {
         ItemStack stack = user.getStackInHand(hand);
+        long now = world.getTime();
+        Map<UUID, Long> cooldownMap = hand == Hand.MAIN_HAND ? MAIN_HAND_COOLDOWN_UNTIL : OFF_HAND_COOLDOWN_UNTIL;
+        long cooldownUntil = cooldownMap.getOrDefault(user.getUuid(), 0L);
+        if (cooldownUntil > now) {
+            return ActionResult.FAIL;
+        }
+
         world.playSound(
                 null,
                 user.getX(),
@@ -44,11 +58,11 @@ public class BlasterItem extends Item {
         }
 
         user.incrementStat(Stats.USED.getOrCreateStat(this));
-        user.getItemCooldownManager().set(stack, 5);
+        cooldownMap.put(user.getUuid(), now + BLASTER_COOLDOWN_TICKS);
         if (!user.getAbilities().creativeMode) {
             stack.damage(1, user, hand);
         }
-        return ActionResult.SUCCESS;
+        return ActionResult.CONSUME;
     }
 
     @Override
