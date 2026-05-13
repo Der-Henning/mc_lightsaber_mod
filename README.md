@@ -1,12 +1,12 @@
 # Lightsabers (Fabric)
 
-Minecraft Java Fabric mod targeting **1.21.11** with lightsabers, blaster, recipes, sounds, and Jedi armor.
+Minecraft Java Fabric mod targeting **26.1.2** with lightsabers, blaster, recipes, sounds, and Jedi armor.
 
 > Note: This project was vibe coded using Codex.
 
 ## Prerequisites
 
-- Java 21
+- Java 25
 - Gradle
 - Internet connection for one-time dev dependency/shader downloads
 
@@ -20,10 +20,10 @@ Run once to install optional visual runtime dependencies into `run/mods` and `ru
 
 The setup script installs:
 
-- `sodium-fabric-0.8.4+mc1.21.11.jar`
-- `iris-fabric-1.10.5+mc1.21.11.jar`
-- `lambdynamiclights-4.9.1+1.21.11.jar`
-- `modmenu-17.0.0-beta.2.jar`
+- `sodium-fabric-0.8.11+mc26.1.2.jar`
+- `iris-fabric-1.10.9+mc26.1.1.jar`
+- `lambdynamiclights-4.10.2+26.1.2.jar`
+- `modmenu-18.0.0-beta.1.jar`
 - `ComplementaryUnbound_r5.7.1.zip` shaderpack
 
 Optional:
@@ -54,7 +54,7 @@ Built jar output: `build/libs/`.
 
 ## Install (Client)
 
-Use Fabric Loader for Minecraft `1.21.11` and place these jars in your client `mods/` folder:
+Use Fabric Loader for Minecraft `26.1.2` and place these jars in your client `mods/` folder:
 
 - this mod jar from `build/libs/`
 - `fabric-api`
@@ -70,7 +70,7 @@ Optional visual mods (client-only):
 
 Yes, this mod works on a Fabric server.
 
-Use Fabric Loader for Minecraft `1.21.11` and place these jars in the server `mods/` folder:
+Use Fabric Loader for Minecraft `26.1.2` and place these jars in the server `mods/` folder:
 
 - this mod jar from `build/libs/`
 - `fabric-api`

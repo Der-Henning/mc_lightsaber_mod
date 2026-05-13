@@ -1,13 +1,15 @@
 {
   "required": true,
   "package": "com.henning.lightsabers.mixin",
-  "compatibilityLevel": "JAVA_21",
+  "compatibilityLevel": "JAVA_25",
   "mixins": [],
   "client": [
+    "BufferSourceAccessor",
     "BufferBuilderStorageMixin",
     "MinecraftClientAttackMixin",
     "ItemRendererMixin",
     "ItemModelManagerMixin",
+    "SubmitNodeCollectionMixin",
     "RenderLayerInvoker"
   ],
   "injectors": {

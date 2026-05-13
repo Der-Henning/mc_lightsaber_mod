@@ -5,24 +5,24 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
-import net.minecraft.component.type.TooltipDisplayComponent;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.tooltip.TooltipType;
-import net.minecraft.network.packet.s2c.play.EntityVelocityUpdateS2CPacket;
-import net.minecraft.particle.ParticleTypes;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.text.Text;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Hand;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.component.TooltipDisplay;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 
 public class LightsaberItem extends Item {
 
@@ -33,116 +33,125 @@ public class LightsaberItem extends Item {
     private static final Map<UUID, Long> PERFECT_DEFLECT_UNTIL_TICK =
         new ConcurrentHashMap<>();
 
-    public LightsaberItem(Item.Settings settings) {
+    public LightsaberItem(Item.Properties settings) {
         super(settings);
     }
 
     @Override
-    public boolean hasGlint(ItemStack stack) {
+    public boolean isFoil(ItemStack stack) {
         return true;
     }
 
     @Override
-    public void postHit(
+    public void postHurtEnemy(
         ItemStack stack,
         LivingEntity target,
         LivingEntity attacker
     ) {
-        target.setOnFireFor(4.0F);
+        target.igniteForSeconds(4.0F);
         LightsabersMod.handleLightsaberAttack(attacker, target);
-        super.postHit(stack, target, attacker);
+        super.postHurtEnemy(stack, target, attacker);
     }
 
     @Override
-    public ActionResult use(World world, PlayerEntity user, Hand hand) {
+    public InteractionResult use(
+        Level level,
+        Player user,
+        InteractionHand hand
+    ) {
         if (
-            hand == Hand.OFF_HAND &&
-            !(user.getMainHandStack().getItem() instanceof LightsaberItem)
+            hand == InteractionHand.OFF_HAND &&
+            !(user.getMainHandItem().getItem() instanceof LightsaberItem)
         ) {
-            return ActionResult.PASS;
+            return InteractionResult.PASS;
         }
 
-        if (!world.isClient()) {
-            if (world instanceof ServerWorld serverWorld) {
+        if (!level.isClientSide()) {
+            if (level instanceof ServerLevel serverLevel) {
                 PERFECT_DEFLECT_UNTIL_TICK.put(
-                    user.getUuid(),
-                    serverWorld.getTime() + PERFECT_DEFLECT_WINDOW_TICKS
+                    user.getUUID(),
+                    serverLevel.getServer().getTickCount() +
+                    PERFECT_DEFLECT_WINDOW_TICKS
                 );
             }
 
-            if (user.isSneaking() && user.isOnGround()) {
-                performForceJump(world, user, hand);
-                return ActionResult.SUCCESS;
+            if (user.isShiftKeyDown() && user.onGround()) {
+                performForceJump(level, user, hand);
+                return InteractionResult.SUCCESS;
             }
 
-            world.playSound(
+            level.playSound(
                 null,
                 user.getX(),
                 user.getY(),
                 user.getZ(),
                 LightsabersMod.LIGHTSABER_SWING,
-                SoundCategory.PLAYERS,
+                SoundSource.PLAYERS,
                 0.85F,
                 1.0F
             );
-            user.getItemCooldownManager().set(user.getStackInHand(hand), 8);
+            user.getCooldowns().addCooldown(user.getItemInHand(hand), 8);
         }
-        return ActionResult.SUCCESS;
+        return InteractionResult.SUCCESS;
     }
 
     public static boolean hasPerfectDeflectWindow(
-        PlayerEntity player,
-        ServerWorld world
+        Player player,
+        ServerLevel level
     ) {
-        Long untilTick = PERFECT_DEFLECT_UNTIL_TICK.get(player.getUuid());
+        Long untilTick = PERFECT_DEFLECT_UNTIL_TICK.get(player.getUUID());
         if (untilTick == null) {
             return false;
         }
-        if (world.getTime() > untilTick) {
-            PERFECT_DEFLECT_UNTIL_TICK.remove(player.getUuid());
+        if (level.getServer().getTickCount() > untilTick) {
+            PERFECT_DEFLECT_UNTIL_TICK.remove(player.getUUID());
             return false;
         }
         return true;
     }
 
-    private void performForceJump(World world, PlayerEntity user, Hand hand) {
-        Vec3d look = user.getRotationVec(1.0F);
-        Vec3d horizontalLook = new Vec3d(look.x, 0.0D, look.z);
-        if (horizontalLook.lengthSquared() > 1.0E-6D) {
+    private void performForceJump(
+        Level level,
+        Player user,
+        InteractionHand hand
+    ) {
+        Vec3 look = user.getViewVector(1.0F);
+        Vec3 horizontalLook = new Vec3(look.x, 0.0D, look.z);
+        if (horizontalLook.lengthSqr() > 1.0E-6D) {
             horizontalLook = horizontalLook.normalize();
         }
 
-        Vec3d jumpBoost = new Vec3d(
+        Vec3 jumpBoost = new Vec3(
             horizontalLook.x * FORCE_JUMP_FORWARD,
             FORCE_JUMP_VERTICAL_BOOST,
             horizontalLook.z * FORCE_JUMP_FORWARD
         );
 
-        user.setVelocity(user.getVelocity().add(jumpBoost));
+        user.setDeltaMovement(user.getDeltaMovement().add(jumpBoost));
         user.setOnGround(false);
-        user.velocityDirty = true;
-        if (user instanceof ServerPlayerEntity serverPlayer) {
-            serverPlayer.networkHandler.sendPacket(
-                new EntityVelocityUpdateS2CPacket(serverPlayer)
+        user.hurtMarked = true;
+        if (user instanceof ServerPlayer serverPlayer) {
+            serverPlayer.connection.send(
+                new ClientboundSetEntityMotionPacket(serverPlayer)
             );
         }
         user
-            .getItemCooldownManager()
-            .set(user.getStackInHand(hand), FORCE_JUMP_COOLDOWN_TICKS);
+            .getCooldowns()
+            .addCooldown(user.getItemInHand(hand), FORCE_JUMP_COOLDOWN_TICKS);
 
-        world.playSound(
+        level.playSound(
             null,
             user.getX(),
             user.getY(),
             user.getZ(),
-            SoundEvents.ENTITY_PLAYER_ATTACK_SWEEP,
-            SoundCategory.PLAYERS,
+            SoundEvents.PLAYER_ATTACK_SWEEP,
+            SoundSource.PLAYERS,
             0.95F,
             0.8F + user.getRandom().nextFloat() * 0.15F
         );
 
-        if (world instanceof ServerWorld serverWorld) {
-            serverWorld.spawnParticles(
+        if (level instanceof ServerLevel serverLevel) {
+            serverLevel.sendParticles(
                 ParticleTypes.CLOUD,
                 user.getX(),
                 user.getY() + 0.1D,
@@ -153,7 +162,7 @@ public class LightsaberItem extends Item {
                 0.22D,
                 0.02D
             );
-            serverWorld.spawnParticles(
+            serverLevel.sendParticles(
                 ParticleTypes.END_ROD,
                 user.getX(),
                 user.getY() + 0.9D,
@@ -168,42 +177,42 @@ public class LightsaberItem extends Item {
     }
 
     @Override
-    public void appendTooltip(
+    public void appendHoverText(
         ItemStack stack,
         Item.TooltipContext context,
-        TooltipDisplayComponent displayComponent,
-        Consumer<Text> textConsumer,
-        TooltipType type
+        TooltipDisplay displayComponent,
+        Consumer<Component> textConsumer,
+        TooltipFlag type
     ) {
         textConsumer.accept(
-            Text.translatable("item.lightsabers.lightsaber.tooltip").formatted(
-                Formatting.AQUA
-            )
+            Component.translatable(
+                "item.lightsabers.lightsaber.tooltip"
+            ).withStyle(ChatFormatting.AQUA)
         );
         textConsumer.accept(
-            Text.translatable("item.lightsabers.weapon.fire_notice").formatted(
-                Formatting.GOLD
-            )
+            Component.translatable(
+                "item.lightsabers.weapon.fire_notice"
+            ).withStyle(ChatFormatting.GOLD)
         );
         textConsumer.accept(
-            Text.translatable(
+            Component.translatable(
                 "item.lightsabers.lightsaber.deflect_notice"
-            ).formatted(Formatting.GRAY)
+            ).withStyle(ChatFormatting.GRAY)
         );
         textConsumer.accept(
-            Text.translatable(
+            Component.translatable(
                 "item.lightsabers.lightsaber.mastery_notice"
-            ).formatted(Formatting.LIGHT_PURPLE)
+            ).withStyle(ChatFormatting.LIGHT_PURPLE)
         );
         textConsumer.accept(
-            Text.translatable(
+            Component.translatable(
                 "item.lightsabers.lightsaber.dual_wield_notice"
-            ).formatted(Formatting.RED)
+            ).withStyle(ChatFormatting.RED)
         );
         textConsumer.accept(
-            Text.translatable(
+            Component.translatable(
                 "item.lightsabers.lightsaber.force_jump_notice"
-            ).formatted(Formatting.DARK_AQUA)
+            ).withStyle(ChatFormatting.DARK_AQUA)
         );
     }
 }

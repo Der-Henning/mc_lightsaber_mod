@@ -5,9 +5,9 @@ import com.henning.lightsabers.item.LightsaberItem;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.entity.FlyingItemEntityRenderer;
-import net.minecraft.util.Hand;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.entity.ThrownItemRenderer;
+import net.minecraft.world.InteractionHand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,24 +24,24 @@ public class LightsabersClient implements ClientModInitializer {
     public void onInitializeClient() {
         EntityRendererRegistry.register(
             LightsabersMod.BLASTER_PROJECTILE,
-            context -> new FlyingItemEntityRenderer<>(context, 0.75F, true)
+            context -> new ThrownItemRenderer<>(context, 0.75F, true)
         );
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (pendingOffhandSwings <= 0) {
                 return;
             }
-            if (client.player == null || client.world == null) {
+            if (client.player == null || client.level == null) {
                 pendingOffhandSwings = 0;
                 offhandSwingDelayTicks = 0;
                 return;
             }
 
             boolean mainIsSaber =
-                client.player.getMainHandStack().getItem() instanceof
+                client.player.getMainHandItem().getItem() instanceof
                     LightsaberItem;
             boolean offIsSaber =
-                client.player.getOffHandStack().getItem() instanceof
+                client.player.getOffhandItem().getItem() instanceof
                     LightsaberItem;
             if (!mainIsSaber || !offIsSaber) {
                 pendingOffhandSwings = 0;
@@ -56,7 +56,7 @@ public class LightsabersClient implements ClientModInitializer {
                 }
             }
 
-            client.player.swingHand(Hand.OFF_HAND, false);
+            client.player.swing(InteractionHand.OFF_HAND, false);
             pendingOffhandSwings--;
             offhandSwingDelayTicks =
                 pendingOffhandSwings > 0 ? OFFHAND_SWING_DELAY_TICKS : 0;
@@ -65,17 +65,17 @@ public class LightsabersClient implements ClientModInitializer {
         LOGGER.info("Lightsabers client initialized");
     }
 
-    public static void onLocalAttackClick(MinecraftClient client) {
+    public static void onLocalAttackClick(Minecraft client) {
         if (
             client.player == null ||
-            client.world == null ||
-            client.currentScreen != null
+            client.level == null ||
+            client.screen != null
         ) {
             return;
         }
 
         boolean mainIsSaber =
-            client.player.getMainHandStack().getItem() instanceof
+            client.player.getMainHandItem().getItem() instanceof
                 LightsaberItem;
         if (!mainIsSaber) {
             return;
@@ -88,7 +88,7 @@ public class LightsabersClient implements ClientModInitializer {
         );
 
         boolean offIsSaber =
-            client.player.getOffHandStack().getItem() instanceof LightsaberItem;
+            client.player.getOffhandItem().getItem() instanceof LightsaberItem;
         if (offIsSaber) {
             boolean queueWasEmpty = pendingOffhandSwings == 0;
             pendingOffhandSwings = Math.min(pendingOffhandSwings + 1, 4);

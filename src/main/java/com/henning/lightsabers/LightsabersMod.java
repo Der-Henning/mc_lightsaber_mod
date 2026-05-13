@@ -5,59 +5,61 @@ import com.henning.lightsabers.item.BlasterItem;
 import com.henning.lightsabers.item.LightsaberItem;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.creativetab.v1.FabricCreativeModeTab;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.gamerule.v1.GameRuleBuilder;
-import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
-import net.minecraft.block.AbstractFireBlock;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.SpawnGroup;
-import net.minecraft.entity.damage.DamageTypes;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemGroup;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.ToolMaterial;
-import net.minecraft.item.tooltip.TooltipType;
-import net.minecraft.item.equipment.ArmorMaterial;
-import net.minecraft.item.equipment.EquipmentAsset;
-import net.minecraft.item.equipment.EquipmentAssetKeys;
-import net.minecraft.item.equipment.EquipmentType;
-import net.minecraft.component.type.TooltipDisplayComponent;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.Registry;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.registry.tag.BlockTags;
-import net.minecraft.registry.tag.ItemTags;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvent;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.text.Text;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Hand;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.Rarity;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
-import net.minecraft.world.rule.GameRule;
-import net.minecraft.world.rule.GameRuleCategory;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.ItemTags;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.damagesource.DamageTypes;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Rarity;
+import net.minecraft.world.item.ToolMaterial;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.component.TooltipDisplay;
+import net.minecraft.world.item.equipment.ArmorMaterial;
+import net.minecraft.world.item.equipment.ArmorType;
+import net.minecraft.world.item.equipment.EquipmentAsset;
+import net.minecraft.world.item.equipment.EquipmentAssets;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.BaseFireBlock;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.gamerules.GameRule;
+import net.minecraft.world.level.gamerules.GameRuleCategory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.function.Consumer;
 
 public class LightsabersMod implements ModInitializer {
 
     public static final String MOD_ID = "lightsabers";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+
     public static final SoundEvent LIGHTSABER_SWING = registerSound(
         "lightsaber.swing"
     );
@@ -70,10 +72,12 @@ public class LightsabersMod implements ModInitializer {
     public static final SoundEvent BLASTER_SHOOT = registerSound(
         "blaster.shoot"
     );
+
     public static final GameRule<Boolean> LIGHTSABER_IGNITES_WOOD_RULE =
         GameRuleBuilder.forBoolean(false)
             .category(GameRuleCategory.PLAYER)
-            .buildAndRegister(Identifier.of(MOD_ID, "lightsaber_ignites_wood"));
+            .buildAndRegister(id("lightsaber_ignites_wood"));
+
     private static final ThreadLocal<Boolean> FALL_DAMAGE_REDUCTION_ACTIVE =
         ThreadLocal.withInitial(() -> false);
     private static final float JEDI_TUNIC_EXTRA_SAFE_FALL_DAMAGE = 4.0F;
@@ -81,10 +85,10 @@ public class LightsabersMod implements ModInitializer {
     private static final float DUAL_WIELD_BONUS_DAMAGE = 4.0F;
     private static final float DUAL_WIELD_BONUS_FIRE_SECONDS = 2.0F;
     private static final int DUAL_WIELD_OFFHAND_COOLDOWN_TICKS = 6;
-    private static final AtomicInteger OFFHAND_STRIKE_DEBUG_COUNTER =
-        new AtomicInteger();
+
     public static final EntityType<BlasterProjectileEntity> BLASTER_PROJECTILE =
         registerBlasterProjectile("blaster_projectile");
+
     public static final Item BLASTER = registerBlaster("blaster");
     public static final Item CYAN_LIGHTSABER = registerLightsaber("lightsaber");
     public static final Item BLUE_LIGHTSABER = registerLightsaber(
@@ -102,45 +106,44 @@ public class LightsabersMod implements ModInitializer {
     public static final Item YELLOW_LIGHTSABER = registerLightsaber(
         "yellow_lightsaber"
     );
-    public static final RegistryKey<EquipmentAsset> JEDI_ARMOR_ASSET =
-        RegistryKey.of(
-            EquipmentAssetKeys.REGISTRY_KEY,
-            Identifier.of(MOD_ID, "jedi")
-        );
+
+    public static final ResourceKey<EquipmentAsset> JEDI_ARMOR_ASSET =
+        ResourceKey.create(EquipmentAssets.ROOT_ID, id("jedi"));
     public static final ArmorMaterial JEDI_ARMOR_MATERIAL = new ArmorMaterial(
         22,
         Map.of(
-            EquipmentType.HELMET,
+            ArmorType.HELMET,
             2,
-            EquipmentType.CHESTPLATE,
+            ArmorType.CHESTPLATE,
             5,
-            EquipmentType.LEGGINGS,
+            ArmorType.LEGGINGS,
             4,
-            EquipmentType.BOOTS,
+            ArmorType.BOOTS,
             2
         ),
         18,
-        SoundEvents.ITEM_ARMOR_EQUIP_LEATHER,
+        SoundEvents.ARMOR_EQUIP_LEATHER,
         0.0F,
         0.0F,
         ItemTags.REPAIRS_LEATHER_ARMOR,
         JEDI_ARMOR_ASSET
     );
+
     public static final Item JEDI_HOOD = registerArmor(
         "jedi_hood",
-        EquipmentType.HELMET
+        ArmorType.HELMET
     );
     public static final Item JEDI_TUNIC = registerArmor(
         "jedi_tunic",
-        EquipmentType.CHESTPLATE
+        ArmorType.CHESTPLATE
     );
     public static final Item JEDI_PANTS = registerArmor(
         "jedi_pants",
-        EquipmentType.LEGGINGS
+        ArmorType.LEGGINGS
     );
     public static final Item JEDI_BOOTS = registerArmor(
         "jedi_boots",
-        EquipmentType.BOOTS
+        ArmorType.BOOTS
     );
 
     public static final List<Item> ALL_LIGHTSABERS = List.of(
@@ -167,15 +170,15 @@ public class LightsabersMod implements ModInitializer {
         JEDI_BOOTS
     );
 
-    public static final ItemGroup LIGHTSABERS_GROUP = Registry.register(
-        Registries.ITEM_GROUP,
-        Identifier.of(MOD_ID, "main"),
-        FabricItemGroup.builder()
-            .displayName(Text.translatable("itemGroup.lightsabers.main"))
+    public static final CreativeModeTab LIGHTSABERS_GROUP = Registry.register(
+        BuiltInRegistries.CREATIVE_MODE_TAB,
+        id("main"),
+        FabricCreativeModeTab.builder()
+            .title(Component.translatable("itemGroup.lightsabers.main"))
             .icon(() -> new ItemStack(CYAN_LIGHTSABER))
-            .entries((displayContext, entries) -> {
-                ALL_WEAPONS.forEach(entries::add);
-                ALL_JEDI_ARMOR.forEach(entries::add);
+            .displayItems((displayContext, entries) -> {
+                ALL_WEAPONS.forEach(entries::accept);
+                ALL_JEDI_ARMOR.forEach(entries::accept);
             })
             .build()
     );
@@ -190,79 +193,76 @@ public class LightsabersMod implements ModInitializer {
     private static void registerLightsaberBlockIgnition() {
         AttackBlockCallback.EVENT.register(
             (player, world, hand, pos, direction) -> {
-                if (world.isClient() || player.isSpectator()) {
-                    return ActionResult.PASS;
+                if (world.isClientSide() || player.isSpectator()) {
+                    return InteractionResult.PASS;
                 }
-                if (!(world instanceof ServerWorld serverWorld)) {
-                    return ActionResult.PASS;
+                if (!(world instanceof ServerLevel serverLevel)) {
+                    return InteractionResult.PASS;
                 }
 
                 if (
-                    !(player.getStackInHand(hand).getItem() instanceof
+                    !(player.getItemInHand(hand).getItem() instanceof
                             LightsaberItem)
                 ) {
-                    return ActionResult.PASS;
+                    return InteractionResult.PASS;
                 }
                 if (
-                    !serverWorld
+                    !serverLevel
                         .getGameRules()
-                        .getValue(LIGHTSABER_IGNITES_WOOD_RULE)
+                        .get(LIGHTSABER_IGNITES_WOOD_RULE)
                 ) {
-                    return ActionResult.PASS;
+                    return InteractionResult.PASS;
                 }
 
-                BlockState hitState = serverWorld.getBlockState(pos);
+                BlockState hitState = serverLevel.getBlockState(pos);
                 if (!isWoodBlock(hitState)) {
-                    return ActionResult.PASS;
+                    return InteractionResult.PASS;
                 }
 
-                BlockPos firePos = pos.offset(direction);
+                BlockPos firePos = pos.relative(direction);
                 if (
-                    tryIgnite(serverWorld, firePos) ||
-                    tryIgnite(serverWorld, pos.up())
+                    tryIgnite(serverLevel, firePos) ||
+                    tryIgnite(serverLevel, pos.above())
                 ) {
-                    serverWorld.playSound(
+                    serverLevel.playSound(
                         null,
                         pos,
-                        SoundEvents.ITEM_FLINTANDSTEEL_USE,
-                        SoundCategory.BLOCKS,
+                        SoundEvents.FLINTANDSTEEL_USE,
+                        SoundSource.BLOCKS,
                         0.8F,
-                        1.0F + serverWorld.getRandom().nextFloat() * 0.2F
+                        1.0F + serverLevel.getRandom().nextFloat() * 0.2F
                     );
                 }
 
-                return ActionResult.PASS;
+                return InteractionResult.PASS;
             }
         );
     }
 
     private static boolean isWoodBlock(BlockState state) {
         return (
-            state.isIn(BlockTags.LOGS) ||
-            state.isIn(BlockTags.PLANKS) ||
-            state.isIn(BlockTags.WOODEN_SLABS) ||
-            state.isIn(BlockTags.WOODEN_STAIRS) ||
-            state.isIn(BlockTags.WOODEN_FENCES) ||
-            state.isIn(BlockTags.WOODEN_DOORS) ||
-            state.isIn(BlockTags.WOODEN_TRAPDOORS) ||
-            state.isIn(BlockTags.WOODEN_PRESSURE_PLATES) ||
-            state.isIn(BlockTags.WOODEN_BUTTONS)
+            state.is(BlockTags.LOGS, ignored -> true) ||
+            state.is(BlockTags.PLANKS, ignored -> true) ||
+            state.is(BlockTags.WOODEN_SLABS, ignored -> true) ||
+            state.is(BlockTags.WOODEN_STAIRS, ignored -> true) ||
+            state.is(BlockTags.WOODEN_FENCES, ignored -> true) ||
+            state.is(BlockTags.WOODEN_DOORS, ignored -> true) ||
+            state.is(BlockTags.WOODEN_TRAPDOORS, ignored -> true) ||
+            state.is(BlockTags.WOODEN_PRESSURE_PLATES, ignored -> true) ||
+            state.is(BlockTags.WOODEN_BUTTONS, ignored -> true)
         );
     }
 
-    private static boolean tryIgnite(
-        net.minecraft.world.World world,
-        BlockPos firePos
-    ) {
-        if (!world.getBlockState(firePos).isAir()) {
+    private static boolean tryIgnite(Level level, BlockPos firePos) {
+        if (!level.getBlockState(firePos).isAir()) {
             return false;
         }
 
-        BlockState fireState = AbstractFireBlock.getState(world, firePos);
-        if (!fireState.canPlaceAt(world, firePos)) {
+        BlockState fireState = BaseFireBlock.getState(level, firePos);
+        if (!fireState.canSurvive(level, firePos)) {
             return false;
         }
-        return world.setBlockState(firePos, fireState, Block.NOTIFY_ALL);
+        return level.setBlock(firePos, fireState, Block.UPDATE_ALL);
     }
 
     private static void registerJediRobeFallDamageReduction() {
@@ -271,24 +271,17 @@ public class LightsabersMod implements ModInitializer {
                 if (FALL_DAMAGE_REDUCTION_ACTIVE.get()) {
                     return true;
                 }
-                if (!(entity instanceof PlayerEntity player)) {
+                if (!(entity instanceof Player player)) {
+                    return true;
+                }
+                if (!(entity.level() instanceof ServerLevel serverLevel)) {
+                    return true;
+                }
+                if (!source.is(DamageTypes.FALL)) {
                     return true;
                 }
                 if (
-                    !(entity.getEntityWorld() instanceof
-                            ServerWorld serverWorld)
-                ) {
-                    return true;
-                }
-                if (!source.isOf(DamageTypes.FALL)) {
-                    return true;
-                }
-                if (
-                    player
-                        .getEquippedStack(
-                            net.minecraft.entity.EquipmentSlot.CHEST
-                        )
-                        .getItem() !=
+                    player.getItemBySlot(EquipmentSlot.CHEST).getItem() !=
                     JEDI_TUNIC
                 ) {
                     return true;
@@ -306,7 +299,7 @@ public class LightsabersMod implements ModInitializer {
 
                 FALL_DAMAGE_REDUCTION_ACTIVE.set(true);
                 try {
-                    entity.damage(serverWorld, source, reducedAmount);
+                    entity.hurtServer(serverLevel, source, reducedAmount);
                 } finally {
                     FALL_DAMAGE_REDUCTION_ACTIVE.set(false);
                 }
@@ -320,19 +313,19 @@ public class LightsabersMod implements ModInitializer {
         LivingEntity target
     ) {
         if (
-            attacker instanceof PlayerEntity player &&
-            !(player.getMainHandStack().getItem() instanceof LightsaberItem)
+            attacker instanceof Player player &&
+            !(player.getMainHandItem().getItem() instanceof LightsaberItem)
         ) {
             return;
         }
-        if (attacker.getEntityWorld() instanceof ServerWorld serverWorld) {
-            serverWorld.playSound(
+        if (attacker.level() instanceof ServerLevel serverLevel) {
+            serverLevel.playSound(
                 null,
                 attacker.getX(),
                 attacker.getY(),
                 attacker.getZ(),
                 LIGHTSABER_HIT,
-                SoundCategory.PLAYERS,
+                SoundSource.PLAYERS,
                 0.85F,
                 0.98F + attacker.getRandom().nextFloat() * 0.08F
             );
@@ -344,116 +337,107 @@ public class LightsabersMod implements ModInitializer {
         LivingEntity attacker,
         LivingEntity target
     ) {
-        if (!(attacker instanceof PlayerEntity player)) {
+        if (!(attacker instanceof Player player)) {
             return;
         }
-        if (!(player.getEntityWorld() instanceof ServerWorld serverWorld)) {
+        if (!(player.level() instanceof ServerLevel serverLevel)) {
             return;
         }
-        if (!(player.getMainHandStack().getItem() instanceof LightsaberItem)) {
+        if (!(player.getMainHandItem().getItem() instanceof LightsaberItem)) {
             return;
         }
 
-        net.minecraft.item.ItemStack offhandStack = player.getOffHandStack();
+        ItemStack offhandStack = player.getOffhandItem();
         if (!(offhandStack.getItem() instanceof LightsaberItem)) {
             return;
         }
-        if (player.getItemCooldownManager().isCoolingDown(offhandStack)) {
+        if (player.getCooldowns().isOnCooldown(offhandStack)) {
             return;
         }
 
         player
-            .getItemCooldownManager()
-            .set(offhandStack, DUAL_WIELD_OFFHAND_COOLDOWN_TICKS);
-        if (!player.getAbilities().creativeMode) {
-            offhandStack.damage(1, player, Hand.OFF_HAND);
+            .getCooldowns()
+            .addCooldown(offhandStack, DUAL_WIELD_OFFHAND_COOLDOWN_TICKS);
+        if (!player.getAbilities().instabuild) {
+            offhandStack.hurtAndBreak(1, player, InteractionHand.OFF_HAND);
         }
 
         if (
-            target.damage(
-                serverWorld,
-                player.getDamageSources().playerAttack(player),
+            target.hurtServer(
+                serverLevel,
+                player.damageSources().playerAttack(player),
                 DUAL_WIELD_BONUS_DAMAGE
             )
         ) {
-            target.setOnFireFor(DUAL_WIELD_BONUS_FIRE_SECONDS);
+            target.igniteForSeconds(DUAL_WIELD_BONUS_FIRE_SECONDS);
         }
     }
 
-    private static Item registerLightsaber(String id) {
-        RegistryKey<Item> key = RegistryKey.of(
-            Registries.ITEM.getKey(),
-            Identifier.of(MOD_ID, id)
-        );
+    private static Item registerLightsaber(String itemId) {
+        ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, id(itemId));
         return Registry.register(
-            Registries.ITEM,
+            BuiltInRegistries.ITEM,
             key,
             new LightsaberItem(
-                new Item.Settings()
-                    .registryKey(key)
-                    .maxCount(1)
-                    .maxDamage(2048)
-                    .fireproof()
+                new Item.Properties()
+                    .setId(key)
+                    .stacksTo(1)
+                    .durability(2048)
+                    .fireResistant()
                     .rarity(Rarity.RARE)
                     .sword(ToolMaterial.NETHERITE, 8.0F, -2.2F)
             )
         );
     }
 
-    private static Item registerBlaster(String id) {
-        RegistryKey<Item> key = RegistryKey.of(
-            Registries.ITEM.getKey(),
-            Identifier.of(MOD_ID, id)
-        );
+    private static Item registerBlaster(String itemId) {
+        ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, id(itemId));
         return Registry.register(
-            Registries.ITEM,
+            BuiltInRegistries.ITEM,
             key,
             new BlasterItem(
-                new Item.Settings()
-                    .registryKey(key)
-                    .maxCount(1)
-                    .maxDamage(465)
+                new Item.Properties()
+                    .setId(key)
+                    .stacksTo(1)
+                    .durability(465)
                     .rarity(Rarity.UNCOMMON)
             )
         );
     }
 
-    private static SoundEvent registerSound(String id) {
-        Identifier identifier = Identifier.of(MOD_ID, id);
+    private static SoundEvent registerSound(String soundId) {
+        Identifier identifier = id(soundId);
         return Registry.register(
-            Registries.SOUND_EVENT,
+            BuiltInRegistries.SOUND_EVENT,
             identifier,
-            SoundEvent.of(identifier)
+            SoundEvent.createVariableRangeEvent(identifier)
         );
     }
 
-    private static Item registerArmor(String id, EquipmentType equipmentType) {
-        RegistryKey<Item> key = RegistryKey.of(
-            Registries.ITEM.getKey(),
-            Identifier.of(MOD_ID, id)
-        );
+    private static Item registerArmor(String itemId, ArmorType armorType) {
+        ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, id(itemId));
         return Registry.register(
-            Registries.ITEM,
+            BuiltInRegistries.ITEM,
             key,
             new Item(
-                new Item.Settings()
-                    .registryKey(key)
-                    .maxCount(1)
-                    .armor(JEDI_ARMOR_MATERIAL, equipmentType)
+                new Item.Properties()
+                    .setId(key)
+                    .stacksTo(1)
+                    .humanoidArmor(JEDI_ARMOR_MATERIAL, armorType)
             ) {
                 @Override
-                public void appendTooltip(
+                public void appendHoverText(
                     ItemStack stack,
                     TooltipContext context,
-                    TooltipDisplayComponent displayComponent,
-                    Consumer<Text> textConsumer,
-                    TooltipType type
+                    TooltipDisplay displayComponent,
+                    Consumer<Component> textConsumer,
+                    TooltipFlag type
                 ) {
-                    if (equipmentType == EquipmentType.CHESTPLATE) {
+                    if (armorType == ArmorType.CHESTPLATE) {
                         textConsumer.accept(
-                            Text.translatable(
+                            Component.translatable(
                                 "item.lightsabers.jedi_armor.fall_notice"
-                            ).formatted(Formatting.AQUA)
+                            ).withStyle(ChatFormatting.AQUA)
                         );
                     }
                 }
@@ -463,24 +447,28 @@ public class LightsabersMod implements ModInitializer {
 
     private static EntityType<
         BlasterProjectileEntity
-    > registerBlasterProjectile(String id) {
-        Identifier identifier = Identifier.of(MOD_ID, id);
-        RegistryKey<EntityType<?>> key = RegistryKey.of(
-            RegistryKeys.ENTITY_TYPE,
+    > registerBlasterProjectile(String entityId) {
+        Identifier identifier = id(entityId);
+        ResourceKey<EntityType<?>> key = ResourceKey.create(
+            Registries.ENTITY_TYPE,
             identifier
         );
         return Registry.register(
-            Registries.ENTITY_TYPE,
-            identifier,
-            EntityType.Builder.<BlasterProjectileEntity>create(
+            BuiltInRegistries.ENTITY_TYPE,
+            key,
+            EntityType.Builder.<BlasterProjectileEntity>of(
                 BlasterProjectileEntity::new,
-                SpawnGroup.MISC
+                MobCategory.MISC
             )
-                .dropsNothing()
-                .dimensions(0.25F, 0.25F)
-                .maxTrackingRange(4)
-                .trackingTickInterval(10)
+                .noLootTable()
+                .sized(0.25F, 0.25F)
+                .clientTrackingRange(4)
+                .updateInterval(10)
                 .build(key)
         );
+    }
+
+    private static Identifier id(String path) {
+        return Identifier.fromNamespaceAndPath(MOD_ID, path);
     }
 }

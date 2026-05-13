@@ -1,55 +1,61 @@
 package com.henning.lightsabers.mixin;
 
 import com.henning.lightsabers.client.LightsaberGlow;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.TexturedRenderLayers;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.VertexConsumers;
-import net.minecraft.client.render.item.ItemRenderer;
-import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.OutlineBufferSource;
+import net.minecraft.client.renderer.SubmitNodeStorage;
+import net.minecraft.client.renderer.feature.ItemFeatureRenderer;
+import net.minecraft.client.renderer.rendertype.OutputTarget;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-@Mixin(ItemRenderer.class)
+@Mixin(ItemFeatureRenderer.class)
 public abstract class ItemRendererMixin {
-    @Inject(method = "getItemGlintConsumer", at = @At("HEAD"), cancellable = true)
-    private static void lightsabers$boostGlintConsumer(VertexConsumerProvider vertexConsumers, RenderLayer layer, boolean solid, boolean glint, CallbackInfoReturnable<VertexConsumer> cir) {
-        if (!LightsaberGlow.isLightsaberTargetStack()) {
+    @Inject(method = "getFoilRenderType", at = @At("HEAD"), cancellable = true)
+    private static void lightsabers$boostGlintRenderType(
+        RenderType layer,
+        boolean solid,
+        CallbackInfoReturnable<RenderType> cir
+    ) {
+        if (!LightsaberGlow.isRenderingLightsaberSubmit()) {
             return;
         }
 
-        if (!glint) {
-            cir.setReturnValue(vertexConsumers.getBuffer(layer));
+        if (
+            Minecraft.useShaderTransparency() &&
+            layer.outputTarget() == OutputTarget.ITEM_ENTITY_TARGET
+        ) {
+            cir.setReturnValue(LightsaberGlow.getGlintTranslucent());
             return;
         }
 
-        boolean transparentGlint = layer == TexturedRenderLayers.getItemTranslucentCull() || layer == TexturedRenderLayers.getBlockTranslucentCull();
-        VertexConsumer base = vertexConsumers.getBuffer(layer);
-        VertexConsumer primary = vertexConsumers.getBuffer(transparentGlint ? LightsaberGlow.getGlintTranslucent() : (solid ? LightsaberGlow.getGlint() : LightsaberGlow.getEntityGlint()));
-        VertexConsumer secondary = vertexConsumers.getBuffer(LightsaberGlow.getGlintTranslucent());
-        VertexConsumer stacked = unionDistinct(primary, secondary);
-        cir.setReturnValue(unionDistinct(stacked, base));
+        cir.setReturnValue(
+            solid ? LightsaberGlow.getGlint() : LightsaberGlow.getEntityGlint()
+        );
     }
 
-    @Inject(method = "getSpecialItemGlintConsumer", at = @At("HEAD"), cancellable = true)
-    private static void lightsabers$boostSpecialGlintConsumer(VertexConsumerProvider vertexConsumers, RenderLayer layer, MatrixStack.Entry matrixEntry, CallbackInfoReturnable<VertexConsumer> cir) {
-        if (!LightsaberGlow.isLightsaberTargetStack()) {
-            return;
-        }
-
-        VertexConsumer primary = vertexConsumers.getBuffer(LightsaberGlow.getGlint());
-        VertexConsumer secondary = vertexConsumers.getBuffer(LightsaberGlow.getGlintTranslucent());
-        VertexConsumer base = vertexConsumers.getBuffer(layer);
-        cir.setReturnValue(unionDistinct(unionDistinct(primary, secondary), base));
+    @Inject(method = "renderItem", at = @At("HEAD"))
+    private void lightsabers$beginLightsaberItemRender(
+        MultiBufferSource.BufferSource bufferSource,
+        OutlineBufferSource outlineBufferSource,
+        SubmitNodeStorage.ItemSubmit itemSubmit,
+        CallbackInfo ci
+    ) {
+        LightsaberGlow.beginRenderingSubmit(itemSubmit);
     }
 
-    private static VertexConsumer unionDistinct(VertexConsumer first, VertexConsumer second) {
-        if (first == second) {
-            return first;
-        }
-        return VertexConsumers.union(first, second);
+    @Inject(method = "renderItem", at = @At("RETURN"))
+    private void lightsabers$endLightsaberItemRender(
+        MultiBufferSource.BufferSource bufferSource,
+        OutlineBufferSource outlineBufferSource,
+        SubmitNodeStorage.ItemSubmit itemSubmit,
+        CallbackInfo ci
+    ) {
+        LightsaberGlow.endRenderingSubmit(itemSubmit);
     }
 }
