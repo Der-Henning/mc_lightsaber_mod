@@ -2,12 +2,7 @@ package com.henning.lightsabers.item;
 
 import com.henning.lightsabers.LightsabersMod;
 import com.henning.lightsabers.entity.BlasterProjectileEntity;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Consumer;
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
+import com.henning.lightsabers.combat.CombatState;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.stats.Stats;
@@ -17,16 +12,10 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.level.Level;
 
 public class BlasterItem extends Item {
-    private static final long BLASTER_COOLDOWN_TICKS = 5L;
-    private static final Map<UUID, Long> MAIN_HAND_COOLDOWN_UNTIL =
-        new ConcurrentHashMap<>();
-    private static final Map<UUID, Long> OFF_HAND_COOLDOWN_UNTIL =
-        new ConcurrentHashMap<>();
+    private static final int BLASTER_COOLDOWN_TICKS = 5;
 
     public BlasterItem(Item.Properties settings) {
         super(settings);
@@ -39,30 +28,24 @@ public class BlasterItem extends Item {
         InteractionHand hand
     ) {
         ItemStack stack = user.getItemInHand(hand);
-        long now = level.getServer() == null
-            ? 0L
-            : level.getServer().getTickCount();
-        Map<UUID, Long> cooldownMap =
-            hand == InteractionHand.MAIN_HAND
-                ? MAIN_HAND_COOLDOWN_UNTIL
-                : OFF_HAND_COOLDOWN_UNTIL;
-        long cooldownUntil = cooldownMap.getOrDefault(user.getUUID(), 0L);
-        if (cooldownUntil > now) {
-            return InteractionResult.FAIL;
+        CombatState.Action action = hand == InteractionHand.MAIN_HAND
+            ? CombatState.Action.MAIN_HAND_BLASTER
+            : CombatState.Action.OFF_HAND_BLASTER;
+        if (!LightsabersMod.combatState(user).tryUse(action, user.tickCount, BLASTER_COOLDOWN_TICKS)) {
+            // Let vanilla try the offhand when the main blaster is cooling down.
+            return InteractionResult.PASS;
         }
-
-        level.playSound(
-            null,
-            user.getX(),
-            user.getY(),
-            user.getZ(),
-            LightsabersMod.BLASTER_SHOOT,
-            SoundSource.PLAYERS,
-            0.6F,
-            0.9F + level.getRandom().nextFloat() * 0.15F
-        );
-
         if (level instanceof ServerLevel serverLevel) {
+            serverLevel.playSound(
+                null,
+                user.getX(),
+                user.getY(),
+                user.getZ(),
+                LightsabersMod.BLASTER_SHOOT,
+                SoundSource.PLAYERS,
+                0.6F,
+                0.9F + level.getRandom().nextFloat() * 0.15F
+            );
             BlasterProjectileEntity projectile = new BlasterProjectileEntity(
                 level,
                 user
@@ -81,28 +64,12 @@ public class BlasterItem extends Item {
                         0.5F
                     )
             );
-        }
-
-        user.awardStat(Stats.ITEM_USED.get(this));
-        cooldownMap.put(user.getUUID(), now + BLASTER_COOLDOWN_TICKS);
-        if (!user.getAbilities().instabuild) {
-            stack.hurtAndBreak(1, user, hand);
+            user.awardStat(Stats.ITEM_USED.get(this));
+            if (!user.getAbilities().instabuild) {
+                stack.hurtAndBreak(1, user, hand);
+            }
         }
         return InteractionResult.CONSUME;
     }
 
-    @Override
-    public void appendHoverText(
-        ItemStack stack,
-        Item.TooltipContext context,
-        TooltipDisplay displayComponent,
-        Consumer<Component> textConsumer,
-        TooltipFlag type
-    ) {
-        textConsumer.accept(
-            Component.translatable(
-                "item.lightsabers.weapon.fire_notice"
-            ).withStyle(ChatFormatting.GOLD)
-        );
-    }
 }

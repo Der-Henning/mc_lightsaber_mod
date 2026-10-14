@@ -20,7 +20,6 @@ import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 
 public class BlasterProjectileEntity extends ThrowableItemProjectile {
-    private int lifeTicks;
     private float impactDamage = 6.0F;
     private float impactFireSeconds = 2.0F;
 
@@ -54,21 +53,18 @@ public class BlasterProjectileEntity extends ThrowableItemProjectile {
     @Override
     public void tick() {
         super.tick();
-        lifeTicks++;
-        if (this.level() instanceof ServerLevel serverLevel) {
-            serverLevel.sendParticles(
+        if (this.level().isClientSide()) {
+            this.level().addParticle(
                 ParticleTypes.END_ROD,
                 this.getX(),
                 this.getY(),
                 this.getZ(),
-                1,
-                0.0D,
                 0.0D,
                 0.0D,
                 0.0D
             );
         }
-        if (lifeTicks > 50) {
+        if (!this.level().isClientSide() && this.tickCount > 50) {
             this.discard();
         }
     }
@@ -85,10 +81,7 @@ public class BlasterProjectileEntity extends ThrowableItemProjectile {
             entityHitResult.getEntity() instanceof LivingEntity livingEntity &&
             this.level() instanceof ServerLevel serverLevel
         ) {
-            DeflectTier deflectTier = getDeflectTier(
-                livingEntity,
-                serverLevel
-            );
+            DeflectTier deflectTier = getDeflectTier(livingEntity);
             if (deflectTier != DeflectTier.NONE) {
                 deflect(serverLevel, livingEntity, deflectTier);
                 this.discard();
@@ -122,8 +115,7 @@ public class BlasterProjectileEntity extends ThrowableItemProjectile {
     }
 
     private DeflectTier getDeflectTier(
-        LivingEntity defender,
-        ServerLevel serverLevel
+        LivingEntity defender
     ) {
         if (!defender.isShiftKeyDown()) {
             return DeflectTier.NONE;
@@ -144,7 +136,7 @@ public class BlasterProjectileEntity extends ThrowableItemProjectile {
 
         if (
             defender instanceof Player player &&
-            LightsaberItem.hasPerfectDeflectWindow(player, serverLevel)
+            LightsaberItem.hasPerfectDeflectWindow(player)
         ) {
             return DeflectTier.PERFECT;
         }
@@ -184,7 +176,7 @@ public class BlasterProjectileEntity extends ThrowableItemProjectile {
         );
 
         double speed = tier == DeflectTier.PERFECT
-            ? Math.max(3.8D, this.getDeltaMovement().length() * 1.6D)
+            ? Math.min(6.0D, Math.max(3.8D, this.getDeltaMovement().length() * 1.6D))
             : Math.max(2.5D, this.getDeltaMovement().length());
         double spreadStrength = tier == DeflectTier.PERFECT ? 0.02D : 0.08D;
         Vec3 spread = new Vec3(

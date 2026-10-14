@@ -1,13 +1,8 @@
 package com.henning.lightsabers.item;
 
 import com.henning.lightsabers.LightsabersMod;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Consumer;
-import net.minecraft.ChatFormatting;
+import com.henning.lightsabers.combat.CombatState;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -19,8 +14,6 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
@@ -29,17 +22,10 @@ public class LightsaberItem extends Item {
     private static final float FORCE_JUMP_VERTICAL_BOOST = 1.04F;
     private static final float FORCE_JUMP_FORWARD = 1.5F;
     private static final int FORCE_JUMP_COOLDOWN_TICKS = 28;
-    private static final long PERFECT_DEFLECT_WINDOW_TICKS = 8L;
-    private static final Map<UUID, Long> PERFECT_DEFLECT_UNTIL_TICK =
-        new ConcurrentHashMap<>();
+    private static final int PERFECT_DEFLECT_WINDOW_TICKS = 8;
 
     public LightsaberItem(Item.Properties settings) {
         super(settings);
-    }
-
-    @Override
-    public boolean isFoil(ItemStack stack) {
-        return true;
     }
 
     @Override
@@ -49,7 +35,7 @@ public class LightsaberItem extends Item {
         LivingEntity attacker
     ) {
         target.igniteForSeconds(4.0F);
-        LightsabersMod.handleLightsaberAttack(attacker, target);
+        LightsabersMod.handleLightsaberAttack(attacker);
         super.postHurtEnemy(stack, target, attacker);
     }
 
@@ -67,18 +53,20 @@ public class LightsaberItem extends Item {
         }
 
         if (!level.isClientSide()) {
-            if (level instanceof ServerLevel serverLevel) {
-                PERFECT_DEFLECT_UNTIL_TICK.put(
-                    user.getUUID(),
-                    serverLevel.getServer().getTickCount() +
-                    PERFECT_DEFLECT_WINDOW_TICKS
-                );
-            }
-
+            CombatState state = LightsabersMod.combatState(user);
             if (user.isShiftKeyDown() && user.onGround()) {
-                performForceJump(level, user, hand);
+                if (!state.tryUse(CombatState.Action.FORCE_JUMP, user.tickCount, FORCE_JUMP_COOLDOWN_TICKS)) {
+                    return InteractionResult.FAIL;
+                }
+                state.openPerfectDeflectWindow(user.tickCount, PERFECT_DEFLECT_WINDOW_TICKS);
+                performForceJump(level, user);
                 return InteractionResult.SUCCESS;
             }
+
+            if (!state.tryUse(CombatState.Action.SABER_USE, user.tickCount, 8)) {
+                return InteractionResult.FAIL;
+            }
+            state.openPerfectDeflectWindow(user.tickCount, PERFECT_DEFLECT_WINDOW_TICKS);
 
             level.playSound(
                 null,
@@ -90,30 +78,19 @@ public class LightsaberItem extends Item {
                 0.85F,
                 1.0F
             );
-            user.getCooldowns().addCooldown(user.getItemInHand(hand), 8);
         }
         return InteractionResult.SUCCESS;
     }
 
     public static boolean hasPerfectDeflectWindow(
-        Player player,
-        ServerLevel level
+        Player player
     ) {
-        Long untilTick = PERFECT_DEFLECT_UNTIL_TICK.get(player.getUUID());
-        if (untilTick == null) {
-            return false;
-        }
-        if (level.getServer().getTickCount() > untilTick) {
-            PERFECT_DEFLECT_UNTIL_TICK.remove(player.getUUID());
-            return false;
-        }
-        return true;
+        return LightsabersMod.combatState(player).hasPerfectDeflectWindow(player.tickCount);
     }
 
     private void performForceJump(
         Level level,
-        Player user,
-        InteractionHand hand
+        Player user
     ) {
         Vec3 look = user.getViewVector(1.0F);
         Vec3 horizontalLook = new Vec3(look.x, 0.0D, look.z);
@@ -129,15 +106,12 @@ public class LightsaberItem extends Item {
 
         user.setDeltaMovement(user.getDeltaMovement().add(jumpBoost));
         user.setOnGround(false);
-        user.hurtMarked = true;
+        user.syncVelocity = true;
         if (user instanceof ServerPlayer serverPlayer) {
             serverPlayer.connection.send(
                 new ClientboundSetEntityMotionPacket(serverPlayer)
             );
         }
-        user
-            .getCooldowns()
-            .addCooldown(user.getItemInHand(hand), FORCE_JUMP_COOLDOWN_TICKS);
 
         level.playSound(
             null,
@@ -176,43 +150,4 @@ public class LightsaberItem extends Item {
         }
     }
 
-    @Override
-    public void appendHoverText(
-        ItemStack stack,
-        Item.TooltipContext context,
-        TooltipDisplay displayComponent,
-        Consumer<Component> textConsumer,
-        TooltipFlag type
-    ) {
-        textConsumer.accept(
-            Component.translatable(
-                "item.lightsabers.lightsaber.tooltip"
-            ).withStyle(ChatFormatting.AQUA)
-        );
-        textConsumer.accept(
-            Component.translatable(
-                "item.lightsabers.weapon.fire_notice"
-            ).withStyle(ChatFormatting.GOLD)
-        );
-        textConsumer.accept(
-            Component.translatable(
-                "item.lightsabers.lightsaber.deflect_notice"
-            ).withStyle(ChatFormatting.GRAY)
-        );
-        textConsumer.accept(
-            Component.translatable(
-                "item.lightsabers.lightsaber.mastery_notice"
-            ).withStyle(ChatFormatting.LIGHT_PURPLE)
-        );
-        textConsumer.accept(
-            Component.translatable(
-                "item.lightsabers.lightsaber.dual_wield_notice"
-            ).withStyle(ChatFormatting.RED)
-        );
-        textConsumer.accept(
-            Component.translatable(
-                "item.lightsabers.lightsaber.force_jump_notice"
-            ).withStyle(ChatFormatting.DARK_AQUA)
-        );
-    }
 }

@@ -27,14 +27,32 @@ download_if_missing() {
   local target_path="$1"
   local url="$2"
   local label="$3"
+  local expected_sha512="$4"
 
-  if [[ -f "$target_path" ]]; then
+  if [[ -f "$target_path" ]] && verify_checksum "$target_path" "$expected_sha512"; then
     echo "[skip] $label already exists: $(basename "$target_path")"
     return
   fi
 
   echo "[download] $label"
-  curl -fL "$url" -o "$target_path"
+  local download_path
+  download_path="$(mktemp "${target_path}.download.XXXXXX")"
+  if ! curl --fail --location --retry 3 "$url" -o "$download_path" || ! verify_checksum "$download_path" "$expected_sha512"; then
+    rm -f "$download_path"
+    echo "Download or checksum verification failed for $label" >&2
+    return 1
+  fi
+  mv "$download_path" "$target_path"
+}
+
+verify_checksum() {
+  local actual_sha512
+  if command -v sha512sum >/dev/null 2>&1; then
+    actual_sha512="$(sha512sum "$1")"
+  else
+    actual_sha512="$(shasum -a 512 "$1")"
+  fi
+  [[ "${actual_sha512%% *}" == "$2" ]]
 }
 
 set_property() {
@@ -66,55 +84,67 @@ remove_duplicates() {
   shopt -s nullglob
   for candidate in "$MODS_DIR"/$glob_pattern; do
     if [[ "$candidate" != "$keep_path" ]]; then
-      echo "[cleanup] Removing duplicate $(basename "$candidate")"
-      rm -f "$candidate"
+      mkdir -p "$RUN_DIR/disabled-mods"
+      echo "[cleanup] Archiving old mod $(basename "$candidate")"
+      mv "$candidate" "$RUN_DIR/disabled-mods/"
     fi
   done
   shopt -u nullglob
 }
 
 # Visual/runtime client mods for local development.
-SODIUM_JAR="$MODS_DIR/sodium-fabric-0.8.11+mc26.1.2.jar"
+SODIUM_JAR="$MODS_DIR/sodium-fabric-0.9.2+mc26.3.jar"
 download_if_missing \
   "$SODIUM_JAR" \
-  "https://cdn.modrinth.com/data/AANobbMI/versions/ff7xUQLH/sodium-fabric-0.8.11%2Bmc26.1.2.jar" \
-  "Sodium (Fabric 26.1.2)"
+  "https://cdn.modrinth.com/data/AANobbMI/versions/bAZQdGpg/sodium-fabric-0.9.2%2Bmc26.3.jar" \
+  "Sodium (Fabric 26.3)" \
+  "f3f260f204b8ce5e8777c2c73f537956755ec61f3817b0b78b5e5568e8aa40f14891f146475075109747665c7c88a45ca0ca9a8df3c68d79c58ecdaa8d8c4b93"
 remove_duplicates "$SODIUM_JAR" "sodium*.jar"
 
-IRIS_JAR="$MODS_DIR/iris-fabric-1.10.9+mc26.1.1.jar"
+IRIS_JAR="$MODS_DIR/iris-fabric-1.11.7+mc26.3.jar"
 download_if_missing \
   "$IRIS_JAR" \
-  "https://cdn.modrinth.com/data/YL57xq9U/versions/MwcLS51S/iris-fabric-1.10.9%2Bmc26.1.1.jar" \
-  "Iris (Fabric 26.1.x)"
+  "https://cdn.modrinth.com/data/YL57xq9U/versions/vTN4NRGW/iris-fabric-1.11.7%2Bmc26.3.jar" \
+  "Iris (Fabric 26.3)" \
+  "d8d3312f77fc52a48e4a6cd836fda33669bdebcb4de0b8c0d30adc808b287330a533e0baef355cc1ce6336a26851d9775369a802a4666b7b7a6266af20088f42"
 remove_duplicates "$IRIS_JAR" "iris*.jar"
 
-LAMB_JAR="$MODS_DIR/lambdynamiclights-4.10.2+26.1.2.jar"
+LAMB_JAR="$MODS_DIR/lambdynamiclights-4.13.0+26.3.jar"
 download_if_missing \
   "$LAMB_JAR" \
-  "https://cdn.modrinth.com/data/yBW8D80W/versions/UnhzVQJV/lambdynamiclights-4.10.2%2B26.1.2.jar" \
-  "LambDynamicLights (26.1.2)"
+  "https://cdn.modrinth.com/data/yBW8D80W/versions/rylKnJ4M/lambdynamiclights-4.13.0%2B26.3.jar" \
+  "LambDynamicLights (26.3)" \
+  "67c37ca7d619bd7f2b0dc02217070c20e34fb3bb3363d4e23f5ef9ca90b1b58adb223fab73639a3499d366497316f1eb297d2759f3ffb976467b4759f784619d"
 remove_duplicates "$LAMB_JAR" "lambdynamiclights*.jar"
 
-MODMENU_JAR="$MODS_DIR/modmenu-18.0.0-beta.1.jar"
+MODMENU_JAR="$MODS_DIR/modmenu-21.0.0.jar"
 download_if_missing \
   "$MODMENU_JAR" \
-  "https://cdn.modrinth.com/data/mOgUt4GM/versions/p7gjPPpV/modmenu-18.0.0-beta.1.jar" \
-  "Mod Menu (recommended by LambDynamicLights)"
+  "https://cdn.modrinth.com/data/mOgUt4GM/versions/kyy7dbrZ/modmenu-21.0.0.jar" \
+  "Mod Menu" \
+  "588c0c557963f4778572ee81bfafc190b332c26d5926c5fe7e3e1614dcf8e14f58e3bc80a97694521dd05907e9753a7c8575048ea769e4dbf40a3db74a4e2606"
 remove_duplicates "$MODMENU_JAR" "modmenu*.jar"
 
 if [[ "$install_shaderpack" == true ]]; then
-  SHADERPACK_NAME="ComplementaryUnbound_r5.7.1.zip"
+  SHADERPACK_NAME="ComplementaryUnbound_r5.9.3.zip"
   download_if_missing \
     "$SHADER_DIR/$SHADERPACK_NAME" \
-    "https://cdn.modrinth.com/data/R6NEzAwj/versions/d8rcvDTp/ComplementaryUnbound_r5.7.1.zip" \
-    "Complementary Unbound shaderpack"
-  set_property "$RUN_DIR/config/iris.properties" "enableShaders" "true"
-  set_property "$RUN_DIR/config/iris.properties" "shaderPack" "$SHADERPACK_NAME"
+    "https://cdn.modrinth.com/data/R6NEzAwj/versions/B1kyfoUZ/ComplementaryUnbound_r5.9.3.zip" \
+    "Complementary Unbound shaderpack" \
+    "a085d1d8cda67cd17a2b414eeba48bbd809da069f269bab46246235ec8fe714a275013c70d0504527b0987d810deddddba4564332414ab3b3bd7435932ff808c"
+  IRIS_CONFIG="$RUN_DIR/config/iris.properties"
+  if [[ ! -f "$IRIS_CONFIG" ]] || ! grep -q '^enableShaders=' "$IRIS_CONFIG"; then
+    set_property "$IRIS_CONFIG" "enableShaders" "true"
+  fi
+  if [[ ! -f "$IRIS_CONFIG" ]] || ! grep -q '^shaderPack=' "$IRIS_CONFIG" || grep -q '^shaderPack=ComplementaryUnbound_' "$IRIS_CONFIG"; then
+    set_property "$IRIS_CONFIG" "shaderPack" "$SHADERPACK_NAME"
+  fi
   shopt -s nullglob
   for shader in "$SHADER_DIR"/ComplementaryUnbound_*.zip; do
     if [[ "$shader" != "$SHADER_DIR/$SHADERPACK_NAME" ]]; then
-      echo "[cleanup] Removing old shaderpack $(basename "$shader")"
-      rm -f "$shader"
+      mkdir -p "$RUN_DIR/disabled-shaderpacks"
+      echo "[cleanup] Archiving old shaderpack $(basename "$shader")"
+      mv "$shader" "$RUN_DIR/disabled-shaderpacks/"
     fi
   done
   shopt -u nullglob

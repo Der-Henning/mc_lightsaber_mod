@@ -3,17 +3,18 @@ package com.henning.lightsabers;
 import com.henning.lightsabers.entity.BlasterProjectileEntity;
 import com.henning.lightsabers.item.BlasterItem;
 import com.henning.lightsabers.item.LightsaberItem;
+import com.henning.lightsabers.combat.CombatState;
+import com.henning.lightsabers.combat.SaberCombat;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.creativetab.v1.FabricCreativeModeTab;
-import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
+import net.fabricmc.fabric.api.attachment.v1.AttachmentRegistry;
+import net.fabricmc.fabric.api.attachment.v1.AttachmentTarget;
+import net.fabricmc.fabric.api.attachment.v1.AttachmentType;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.gamerule.v1.GameRuleBuilder;
-import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -29,9 +30,7 @@ import net.minecraft.tags.ItemTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.player.Player;
@@ -40,13 +39,10 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
 import net.minecraft.world.item.ToolMaterial;
-import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.item.equipment.ArmorMaterial;
 import net.minecraft.world.item.equipment.ArmorType;
 import net.minecraft.world.item.equipment.EquipmentAsset;
 import net.minecraft.world.item.equipment.EquipmentAssets;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseFireBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -78,13 +74,8 @@ public class LightsabersMod implements ModInitializer {
             .category(GameRuleCategory.PLAYER)
             .buildAndRegister(id("lightsaber_ignites_wood"));
 
-    private static final ThreadLocal<Boolean> FALL_DAMAGE_REDUCTION_ACTIVE =
-        ThreadLocal.withInitial(() -> false);
-    private static final float JEDI_TUNIC_EXTRA_SAFE_FALL_DAMAGE = 4.0F;
-    private static final float JEDI_TUNIC_FALL_DAMAGE_MULTIPLIER = 0.4F;
-    private static final float DUAL_WIELD_BONUS_DAMAGE = 4.0F;
-    private static final float DUAL_WIELD_BONUS_FIRE_SECONDS = 2.0F;
-    private static final int DUAL_WIELD_OFFHAND_COOLDOWN_TICKS = 6;
+    private static final AttachmentType<CombatState> COMBAT_STATE =
+        AttachmentRegistry.createDefaulted(id("combat_state"), CombatState::new);
 
     public static final EntityType<BlasterProjectileEntity> BLASTER_PROJECTILE =
         registerBlasterProjectile("blaster_projectile");
@@ -185,8 +176,8 @@ public class LightsabersMod implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        SaberCombat.register();
         registerLightsaberBlockIgnition();
-        registerJediRobeFallDamageReduction();
         LOGGER.info("Initializing {}", MOD_ID);
     }
 
@@ -197,6 +188,9 @@ public class LightsabersMod implements ModInitializer {
                     return InteractionResult.PASS;
                 }
                 if (!(world instanceof ServerLevel serverLevel)) {
+                    return InteractionResult.PASS;
+                }
+                if (!player.getAbilities().mayBuild || !serverLevel.mayInteract(player, pos)) {
                     return InteractionResult.PASS;
                 }
 
@@ -221,8 +215,8 @@ public class LightsabersMod implements ModInitializer {
 
                 BlockPos firePos = pos.relative(direction);
                 if (
-                    tryIgnite(serverLevel, firePos) ||
-                    tryIgnite(serverLevel, pos.above())
+                    tryIgnite(serverLevel, player, firePos) ||
+                    tryIgnite(serverLevel, player, pos.above())
                 ) {
                     serverLevel.playSound(
                         null,
@@ -253,8 +247,8 @@ public class LightsabersMod implements ModInitializer {
         );
     }
 
-    private static boolean tryIgnite(Level level, BlockPos firePos) {
-        if (!level.getBlockState(firePos).isAir()) {
+    private static boolean tryIgnite(ServerLevel level, Player player, BlockPos firePos) {
+        if (!level.mayInteract(player, firePos) || !level.getBlockState(firePos).isAir()) {
             return false;
         }
 
@@ -265,52 +259,12 @@ public class LightsabersMod implements ModInitializer {
         return level.setBlock(firePos, fireState, Block.UPDATE_ALL);
     }
 
-    private static void registerJediRobeFallDamageReduction() {
-        ServerLivingEntityEvents.ALLOW_DAMAGE.register(
-            (entity, source, amount) -> {
-                if (FALL_DAMAGE_REDUCTION_ACTIVE.get()) {
-                    return true;
-                }
-                if (!(entity instanceof Player player)) {
-                    return true;
-                }
-                if (!(entity.level() instanceof ServerLevel serverLevel)) {
-                    return true;
-                }
-                if (!source.is(DamageTypes.FALL)) {
-                    return true;
-                }
-                if (
-                    player.getItemBySlot(EquipmentSlot.CHEST).getItem() !=
-                    JEDI_TUNIC
-                ) {
-                    return true;
-                }
-
-                float adjustedAmount = Math.max(
-                    0.0F,
-                    amount - JEDI_TUNIC_EXTRA_SAFE_FALL_DAMAGE
-                );
-                float reducedAmount =
-                    adjustedAmount * JEDI_TUNIC_FALL_DAMAGE_MULTIPLIER;
-                if (reducedAmount <= 0.0F) {
-                    return false;
-                }
-
-                FALL_DAMAGE_REDUCTION_ACTIVE.set(true);
-                try {
-                    entity.hurtServer(serverLevel, source, reducedAmount);
-                } finally {
-                    FALL_DAMAGE_REDUCTION_ACTIVE.set(false);
-                }
-                return false;
-            }
-        );
+    public static CombatState combatState(Player player) {
+        return ((AttachmentTarget) player).getAttachedOrCreate(COMBAT_STATE);
     }
 
     public static void handleLightsaberAttack(
-        LivingEntity attacker,
-        LivingEntity target
+        LivingEntity attacker
     ) {
         if (
             attacker instanceof Player player &&
@@ -330,47 +284,6 @@ public class LightsabersMod implements ModInitializer {
                 0.98F + attacker.getRandom().nextFloat() * 0.08F
             );
         }
-        tryDualWieldOffhandStrike(attacker, target);
-    }
-
-    public static void tryDualWieldOffhandStrike(
-        LivingEntity attacker,
-        LivingEntity target
-    ) {
-        if (!(attacker instanceof Player player)) {
-            return;
-        }
-        if (!(player.level() instanceof ServerLevel serverLevel)) {
-            return;
-        }
-        if (!(player.getMainHandItem().getItem() instanceof LightsaberItem)) {
-            return;
-        }
-
-        ItemStack offhandStack = player.getOffhandItem();
-        if (!(offhandStack.getItem() instanceof LightsaberItem)) {
-            return;
-        }
-        if (player.getCooldowns().isOnCooldown(offhandStack)) {
-            return;
-        }
-
-        player
-            .getCooldowns()
-            .addCooldown(offhandStack, DUAL_WIELD_OFFHAND_COOLDOWN_TICKS);
-        if (!player.getAbilities().instabuild) {
-            offhandStack.hurtAndBreak(1, player, InteractionHand.OFF_HAND);
-        }
-
-        if (
-            target.hurtServer(
-                serverLevel,
-                player.damageSources().playerAttack(player),
-                DUAL_WIELD_BONUS_DAMAGE
-            )
-        ) {
-            target.igniteForSeconds(DUAL_WIELD_BONUS_FIRE_SECONDS);
-        }
     }
 
     private static Item registerLightsaber(String itemId) {
@@ -382,10 +295,10 @@ public class LightsabersMod implements ModInitializer {
                 new Item.Properties()
                     .setId(key)
                     .stacksTo(1)
-                    .durability(2048)
                     .fireResistant()
                     .rarity(Rarity.RARE)
                     .sword(ToolMaterial.NETHERITE, 8.0F, -2.2F)
+                    .durability(2048)
             )
         );
     }
@@ -424,24 +337,7 @@ public class LightsabersMod implements ModInitializer {
                     .setId(key)
                     .stacksTo(1)
                     .humanoidArmor(JEDI_ARMOR_MATERIAL, armorType)
-            ) {
-                @Override
-                public void appendHoverText(
-                    ItemStack stack,
-                    TooltipContext context,
-                    TooltipDisplay displayComponent,
-                    Consumer<Component> textConsumer,
-                    TooltipFlag type
-                ) {
-                    if (armorType == ArmorType.CHESTPLATE) {
-                        textConsumer.accept(
-                            Component.translatable(
-                                "item.lightsabers.jedi_armor.fall_notice"
-                            ).withStyle(ChatFormatting.AQUA)
-                        );
-                    }
-                }
-            }
+            )
         );
     }
 

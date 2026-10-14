@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "lightsabers-tests",
+  "version": "1.0.0",
+  "name": "Lightsabers Regression Tests",
+  "environment": "*",
+  "entrypoints": {
+    "fabric-gametest": ["com.henning.lightsabers.CombatGameTests"],
+    "fabric-client-gametest": ["com.henning.lightsabers.RenderingGameTest"]
+  },
+  "depends": { "lightsabers": "*", "fabric-api": "*" }
+}

@@ -5,11 +5,32 @@ cd "$(dirname "$0")"
 
 find_java_25_home() {
   is_java_25_home() {
-    local home="$1"
-    [[ -x "$home/bin/java" ]] || return 1
-    [[ -f "$home/release" ]] || return 1
-    grep -q '^JAVA_VERSION="25\.' "$home/release"
+    local jdk_dir="$1"
+    [[ -x "$jdk_dir/bin/java" ]] || return 1
+    [[ -f "$jdk_dir/release" ]] || return 1
+    grep -Eq '^JAVA_VERSION="25([."]|-)' "$jdk_dir/release"
   }
+
+  if [[ -n "${JAVA_HOME:-}" ]] && is_java_25_home "$JAVA_HOME"; then
+    printf '%s\n' "$JAVA_HOME"
+    return
+  fi
+
+  local java_command
+  if java_command="$(command -v java)"; then
+    while [[ -L "$java_command" ]]; do
+      local java_link
+      java_link="$(readlink "$java_command")"
+      if [[ "$java_link" == /* ]]; then
+        java_command="$java_link"
+      else
+        java_command="$(dirname "$java_command")/$java_link"
+      fi
+    done
+    local jdk_dir
+    jdk_dir="$(cd "$(dirname "$java_command")/.." && pwd)"
+    is_java_25_home "$jdk_dir" && printf '%s\n' "$jdk_dir" && return
+  fi
 
   if command -v /usr/libexec/java_home >/dev/null 2>&1; then
     local java_home
@@ -22,8 +43,8 @@ find_java_25_home() {
     local brew_prefix
     for formula in openjdk@25 openjdk; do
       if brew_prefix="$(brew --prefix "$formula" 2>/dev/null)"; then
-        local home="$brew_prefix/libexec/openjdk.jdk/Contents/Home"
-        is_java_25_home "$home" && printf '%s\n' "$home" && return
+        local jdk_dir="$brew_prefix/libexec/openjdk.jdk/Contents/Home"
+        is_java_25_home "$jdk_dir" && printf '%s\n' "$jdk_dir" && return
       fi
     done
   fi
@@ -41,18 +62,18 @@ find_java_25_home() {
   return 1
 }
 
-# Minecraft 26.1.2 requires Java 25.
+# Minecraft 26.3 requires Java 25.
 if JAVA25_HOME="$(find_java_25_home)"; then
   export JAVA_HOME="$JAVA25_HOME"
   export PATH="$JAVA_HOME/bin:$PATH"
 else
-  echo "Java 25 is required for Minecraft 26.1.2 but was not found." >&2
+  echo "Java 25 is required for Minecraft 26.3 but was not found." >&2
   echo "Install OpenJDK 25, for example with: brew install openjdk@25" >&2
   exit 1
 fi
 
 if [[ -x "./gradlew" ]]; then
-  exec ./gradlew runClient --no-daemon
+  exec ./gradlew runClient --no-daemon "$@"
 fi
 
-exec gradle runClient --no-daemon
+exec gradle runClient --no-daemon "$@"

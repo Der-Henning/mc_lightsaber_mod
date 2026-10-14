@@ -2,14 +2,16 @@
   "required": true,
   "package": "com.henning.lightsabers.mixin",
   "compatibilityLevel": "JAVA_25",
-  "mixins": [],
+  "mixins": ["JediFallDamageMixin", "PlayerSaberAttackMixin", "SaberDurabilityMixin", "LivingSwingAccessor", "SwingStateInvoker"],
   "client": [
-    "BufferSourceAccessor",
-    "BufferBuilderStorageMixin",
+    "TextureManagerMixin",
     "MinecraftClientAttackMixin",
-    "ItemRendererMixin",
     "ItemModelManagerMixin",
-    "SubmitNodeCollectionMixin",
+    "ItemStackRenderStateAccessor",
+    "ItemLayerRenderStateAccessor",
+    "FirstPersonHandsMixin",
+    "FirstPersonHandsRenderStateMixin",
+    "FirstPersonHandsRendererMixin",
     "RenderLayerInvoker"
   ],
   "injectors": {

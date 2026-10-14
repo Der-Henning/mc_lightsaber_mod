@@ -1,6 +1,15 @@
 {
   "model": {
-    "type": "minecraft:model",
-    "model": "lightsabers:item/blue_lightsaber"
+    "type": "minecraft:composite",
+    "models": [
+      {
+        "type": "minecraft:model",
+        "model": "lightsabers:item/blue_lightsaber"
+      },
+      {
+        "type": "minecraft:model",
+        "model": "lightsabers:item/blue_lightsaber_aura"
+      }
+    ]
   }
 }

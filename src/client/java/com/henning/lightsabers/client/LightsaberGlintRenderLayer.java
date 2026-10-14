@@ -1,90 +1,52 @@
 package com.henning.lightsabers.client;
 
 import com.henning.lightsabers.mixin.RenderLayerInvoker;
-import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import java.util.Map;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.client.renderer.rendertype.LayeringTransform;
-import net.minecraft.client.renderer.rendertype.OutputTarget;
+import net.minecraft.client.renderer.feature.ItemFeatureRenderer;
+import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.TextureTransform;
 import net.minecraft.resources.Identifier;
 
-@Environment(EnvType.CLIENT)
 public final class LightsaberGlintRenderLayer {
-    private static final Identifier ITEM_GLINT_TEXTURE =
-        Identifier.fromNamespaceAndPath(
-            "lightsabers",
-            "textures/misc/glint_white.png"
-        );
-    private static final Identifier ENTITY_GLINT_TEXTURE =
-        Identifier.fromNamespaceAndPath(
-            "lightsabers",
-            "textures/misc/glint_white.png"
-        );
-
-    public static final RenderType GLINT = createGlint();
-    public static final RenderType ENTITY_GLINT = createEntityGlint();
-    public static final RenderType ARMOR_ENTITY_GLINT =
-        createArmorEntityGlint();
-    public static final RenderType TRANSLUCENT_GLINT =
-        createTranslucentGlint();
+    private static final Identifier GLINT_TEXTURE = Identifier.fromNamespaceAndPath(
+        "lightsabers", "textures/misc/glint_white.png"
+    );
+    private record Key(Identifier atlas, boolean translucent, boolean special) {
+    }
+    private static final Map<Key, RenderType> TYPES = new ConcurrentHashMap<>();
 
     private LightsaberGlintRenderLayer() {
     }
 
-    public static void addGlintTypes(
-        Map<RenderType, ByteBufferBuilder> map
-    ) {
-        add(map, GLINT);
-        add(map, ENTITY_GLINT);
-        add(map, ARMOR_ENTITY_GLINT);
-        add(map, TRANSLUCENT_GLINT);
+    public static void registerTextures(TextureManager textures) {
+        textures.registerForNextReload(GLINT_TEXTURE);
+        // Iris binds vanilla glint samplers even for custom glint render types.
+        textures.registerForNextReload(ItemFeatureRenderer.ENCHANTED_GLINT_ITEM);
+        textures.registerForNextReload(ItemFeatureRenderer.ENCHANTED_GLINT_ARMOR);
     }
 
-    private static void add(
-        Map<RenderType, ByteBufferBuilder> map,
-        RenderType renderType
-    ) {
-        if (!map.containsKey(renderType)) {
-            map.put(renderType, new ByteBufferBuilder(renderType.bufferSize()));
+    public static RenderType get(Identifier atlas, boolean translucent, boolean special) {
+        return TYPES.computeIfAbsent(new Key(atlas, translucent, special), LightsaberGlintRenderLayer::create);
+    }
+
+    private static RenderType create(Key key) {
+        var pipeline = key.translucent()
+            ? (key.special() ? RenderPipelines.ITEM_TRANSLUCENT_GLINT_SPECIAL : RenderPipelines.ITEM_TRANSLUCENT_GLINT)
+            : (key.special() ? RenderPipelines.ITEM_CUTOUT_GLINT_SPECIAL : RenderPipelines.ITEM_CUTOUT_GLINT);
+        var builder = RenderSetup.builder(pipeline)
+            .withTexture("Sampler0", key.atlas())
+            .withTexture("GlintSampler", GLINT_TEXTURE)
+            .setTextureTransform(TextureTransform.GLINT_TEXTURING)
+            .useLightmap().useOverlay().affectsCrumbling()
+            .setOutline(RenderSetup.OutlineProperty.AFFECTS_OUTLINE);
+        if (key.translucent()) {
+            builder.setOitPipelines(key.special() ? RenderPipelines.OIT_ITEM_GLINT_SPECIAL : RenderPipelines.OIT_ITEM_GLINT)
+                .sortOnUpload();
         }
-    }
-
-    private static RenderType createGlint() {
-        return RenderLayerInvoker.lightsabers$invokeCreate("lightsaber_glint",
-                RenderSetup.builder(RenderPipelines.GLINT)
-                        .withTexture("Sampler0", ITEM_GLINT_TEXTURE)
-                        .setTextureTransform(TextureTransform.GLINT_TEXTURING)
-                        .createRenderSetup());
-    }
-
-    private static RenderType createEntityGlint() {
-        return RenderLayerInvoker.lightsabers$invokeCreate("lightsaber_entity_glint",
-                RenderSetup.builder(RenderPipelines.GLINT)
-                        .withTexture("Sampler0", ITEM_GLINT_TEXTURE)
-                        .setTextureTransform(TextureTransform.ENTITY_GLINT_TEXTURING)
-                        .createRenderSetup());
-    }
-
-    private static RenderType createArmorEntityGlint() {
-        return RenderLayerInvoker.lightsabers$invokeCreate("lightsaber_armor_entity_glint",
-                RenderSetup.builder(RenderPipelines.GLINT)
-                        .withTexture("Sampler0", ENTITY_GLINT_TEXTURE)
-                        .setTextureTransform(TextureTransform.ARMOR_ENTITY_GLINT_TEXTURING)
-                        .setLayeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING)
-                        .createRenderSetup());
-    }
-
-    private static RenderType createTranslucentGlint() {
-        return RenderLayerInvoker.lightsabers$invokeCreate("lightsaber_glint_translucent",
-                RenderSetup.builder(RenderPipelines.GLINT)
-                        .withTexture("Sampler0", ITEM_GLINT_TEXTURE)
-                        .setTextureTransform(TextureTransform.GLINT_TEXTURING)
-                        .setOutputTarget(OutputTarget.ITEM_ENTITY_TARGET)
-                        .createRenderSetup());
+        return RenderLayerInvoker.lightsabers$invokeCreate("lightsaber_glint_" + key, builder.createRenderSetup());
     }
 }

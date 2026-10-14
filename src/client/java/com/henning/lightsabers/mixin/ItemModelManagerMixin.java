@@ -1,11 +1,10 @@
 package com.henning.lightsabers.mixin;
 
 import com.henning.lightsabers.client.LightsaberGlow;
+import com.henning.lightsabers.item.LightsaberItem;
 import net.minecraft.client.renderer.item.ItemModelResolver;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.ItemOwner;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -15,52 +14,17 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ItemModelResolver.class)
-public class ItemModelManagerMixin {
-    @Inject(method = "updateForLiving", at = @At("HEAD"))
-    private void lightsabers$setStackLiving(
-        ItemStackRenderState renderState,
-        ItemStack stack,
-        ItemDisplayContext displayContext,
-        LivingEntity entity,
-        CallbackInfo ci
-    ) {
-        LightsaberGlow.setTargetStack(stack);
-    }
-
-    @Inject(method = "updateForNonLiving", at = @At("HEAD"))
-    private void lightsabers$setStackEntity(
-        ItemStackRenderState renderState,
-        ItemStack stack,
-        ItemDisplayContext displayContext,
-        Entity entity,
-        CallbackInfo ci
-    ) {
-        LightsaberGlow.setTargetStack(stack);
-    }
-
-    @Inject(method = "updateForTopItem", at = @At("HEAD"))
-    private void lightsabers$setStackTopItem(
-        ItemStackRenderState renderState,
-        ItemStack stack,
-        ItemDisplayContext displayContext,
-        Level level,
-        ItemOwner owner,
-        int seed,
-        CallbackInfo ci
-    ) {
-        LightsaberGlow.setTargetStack(stack);
-    }
-
-    @Inject(method = "appendItemLayers", at = @At("HEAD"))
-    private void lightsabers$setStackAppendLayers(
-        ItemStackRenderState renderState,
-        ItemStack stack,
-        ItemDisplayContext displayContext,
-        Level level,
-        ItemOwner owner,
-        int seed,
-        CallbackInfo ci
-    ) {
-        LightsaberGlow.setTargetStack(stack);
+public abstract class ItemModelManagerMixin {
+    @Inject(method = "updateForTopItem", at = @At("RETURN"))
+    private void lightsabers$applyBladeGlow(ItemStackRenderState state, ItemStack stack,
+        ItemDisplayContext displayContext, Level level, ItemOwner owner, int seed, CallbackInfo ci) {
+        if (!(stack.getItem() instanceof LightsaberItem)) {
+            return;
+        }
+        ItemStackRenderStateAccessor accessor = (ItemStackRenderStateAccessor) state;
+        for (int i = 0; i < accessor.lightsabers$getActiveLayerCount(); i++) {
+            ItemStackRenderState.LayerRenderState layer = accessor.lightsabers$getLayers()[i];
+            layer.setQuads(LightsaberGlow.withBladeGlow(((ItemLayerRenderStateAccessor) layer).lightsabers$getQuads()));
+        }
     }
 }

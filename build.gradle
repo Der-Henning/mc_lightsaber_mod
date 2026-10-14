@@ -31,13 +31,60 @@ dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     implementation "net.fabricmc:fabric-loader:${project.loader_version}"
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    testImplementation platform('org.junit:junit-bom:6.1.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+}
+
+fabricApi {
+    configureTests {
+        createSourceSet = true
+        modId = 'lightsabers-tests'
+        enableGameTests = true
+        enableClientGameTests = true
+        eula = true
+    }
+}
+
+tasks.named('runClientGameTest') {
+    doFirst {
+        // VSync can stall macOS OpenGL presentation before an isolated test starts.
+        def options = layout.buildDirectory.file('run/clientGameTest/options.txt').get().asFile
+        options.parentFile.mkdirs()
+        options.text = 'enableVsync:false\n'
+    }
+}
+
+if (providers.gradleProperty('visualTests').isPresent()) {
+    tasks.register('prepareVisualTests', Copy) {
+        dependsOn 'deleteGameTestRunDir'
+        into layout.buildDirectory.dir('run/clientGameTest')
+        ['mods', 'shaderpacks', 'config'].each { directory ->
+            from(layout.projectDirectory.dir("run/${directory}")) {
+                into directory
+            }
+        }
+    }
+    tasks.named('runClientGameTest') {
+        dependsOn 'prepareVisualTests'
+    }
+}
+
+def modMetadata = [
+    version: project.version.toString(),
+    minecraft_version: project.minecraft_version,
+    loader_version: project.loader_version,
+    fabric_version: project.fabric_version
+]
 processResources {
-    inputs.property "version", project.version
+    inputs.properties(modMetadata)
 
     filesMatching("fabric.mod.json") {
-        expand "version": project.version
+        expand modMetadata
     }
 }
 
@@ -54,9 +101,11 @@ java {
     targetCompatibility = JavaVersion.VERSION_25
 }
 
+def licenseFileName = "LICENSE_${base.archivesName.get()}"
 jar {
+    from('LEGAL_NOTICE.md', 'SOUND_CREDITS.md')
     from("LICENSE") {
-        rename { "${it}_${project.base.archivesName.get()}" }
+        rename { licenseFileName }
     }
 }
 

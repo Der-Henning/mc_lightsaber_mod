@@ -1,81 +1,41 @@
 package com.henning.lightsabers.client;
 
-import com.henning.lightsabers.LightsabersMod;
+import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.Collections;
-import java.util.IdentityHashMap;
 import java.util.Set;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
-import net.minecraft.client.renderer.SubmitNodeStorage;
-import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.client.resources.model.geometry.ItemQuads;
 
-@Environment(EnvType.CLIENT)
 public final class LightsaberGlow {
-    private static final ThreadLocal<ItemStack> TARGET_STACK = new ThreadLocal<>();
-    private static final ThreadLocal<SubmitNodeStorage.ItemSubmit>
-        RENDERING_SUBMIT = new ThreadLocal<>();
-    private static final Set<SubmitNodeStorage.ItemSubmit> LIGHTSABER_SUBMITS =
-        Collections.newSetFromMap(new IdentityHashMap<>());
+    private static final Set<String> BLADE_TEXTURES = Set.of(
+        "item/lightsaber", "item/blue_lightsaber", "item/green_lightsaber",
+        "item/red_lightsaber", "item/purple_lightsaber", "item/yellow_lightsaber"
+    );
+    // Model data is immutable; cache geometry without retaining old resource packs.
+    private static final Map<ItemQuads, ItemQuads> QUADS = Collections.synchronizedMap(new WeakHashMap<>());
 
     private LightsaberGlow() {
     }
 
-    public static void setTargetStack(ItemStack stack) {
-        TARGET_STACK.set(stack);
+    public static ItemQuads withBladeGlow(ItemQuads quads) {
+        return QUADS.computeIfAbsent(quads, original -> ItemQuads.split(
+            original.all().stream().map(LightsaberGlow::withBladeGlow).toList()
+        ));
     }
 
-    public static void markCurrentTargetSubmit(SubmitNodeStorage.ItemSubmit submit) {
-        if (isLightsaberTarget()) {
-            LIGHTSABER_SUBMITS.add(submit);
-        }
-    }
-
-    public static void beginRenderingSubmit(SubmitNodeStorage.ItemSubmit submit) {
-        RENDERING_SUBMIT.set(submit);
-    }
-
-    public static void endRenderingSubmit(SubmitNodeStorage.ItemSubmit submit) {
-        RENDERING_SUBMIT.remove();
-        LIGHTSABER_SUBMITS.remove(submit);
-    }
-
-    public static RenderType getGlint() {
-        if (!isRenderingLightsaberSubmit()) {
-            return RenderTypes.glint();
-        }
-        return LightsaberGlintRenderLayer.GLINT;
-    }
-
-    public static RenderType getEntityGlint() {
-        if (!isRenderingLightsaberSubmit()) {
-            return RenderTypes.entityGlint();
-        }
-        return LightsaberGlintRenderLayer.ENTITY_GLINT;
-    }
-
-    public static RenderType getArmorEntityGlint() {
-        if (!isRenderingLightsaberSubmit()) {
-            return RenderTypes.armorEntityGlint();
-        }
-        return LightsaberGlintRenderLayer.ARMOR_ENTITY_GLINT;
-    }
-
-    public static RenderType getGlintTranslucent() {
-        if (!isRenderingLightsaberSubmit()) {
-            return RenderTypes.glintTranslucent();
-        }
-        return LightsaberGlintRenderLayer.TRANSLUCENT_GLINT;
-    }
-
-    public static boolean isRenderingLightsaberSubmit() {
-        SubmitNodeStorage.ItemSubmit submit = RENDERING_SUBMIT.get();
-        return submit != null && LIGHTSABER_SUBMITS.contains(submit);
-    }
-
-    private static boolean isLightsaberTarget() {
-        ItemStack stack = TARGET_STACK.get();
-        return stack != null && !stack.isEmpty() && LightsabersMod.ALL_LIGHTSABERS.contains(stack.getItem());
+    private static BakedQuad withBladeGlow(BakedQuad quad) {
+        BakedQuad.MaterialInfo material = quad.materialInfo();
+        var texture = material.sprite().contents().name();
+        boolean blade = texture.getNamespace().equals("lightsabers") && BLADE_TEXTURES.contains(texture.getPath());
+        // Enchanted blades can shimmer, but the halo and hilt never get glint stripes.
+        BakedQuad.MaterialInfo glowMaterial = new BakedQuad.MaterialInfo(
+            material.sprite(), material.layer(), material.itemRenderType(),
+            blade ? LightsaberGlintRenderLayer.get(material.sprite().atlasLocation(), material.itemRenderType().hasBlending(), false) : material.itemRenderType(),
+            blade ? LightsaberGlintRenderLayer.get(material.sprite().atlasLocation(), material.itemRenderType().hasBlending(), true) : material.itemRenderType(),
+            material.tintIndex(), blade ? null : material.shadeDirectionOverride(), blade ? 15 : material.lightEmission()
+        );
+        return new BakedQuad(quad.position0(), quad.position1(), quad.position2(), quad.position3(),
+            quad.packedUV0(), quad.packedUV1(), quad.packedUV2(), quad.packedUV3(), quad.direction(), glowMaterial);
     }
 }
